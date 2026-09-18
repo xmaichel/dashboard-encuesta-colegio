@@ -1,0 +1,22 @@
+http:
+  routers:
+    cbjml-dashboard-http:
+      rule: "Host(`cbjml-dashboard.ywzal8.easypanel.host`)"
+      entrypoints: [http]
+      middlewares: [redirect-to-https]
+      service: cbjml-dashboard
+
+    cbjml-dashboard-https:
+      rule: "Host(`cbjml-dashboard.ywzal8.easypanel.host`)"
+      entrypoints: [https]
+      tls:
+        certResolver: letsencrypt
+        domains: [{ main: cbjml-dashboard.ywzal8.easypanel.host }]
+      service: cbjml-dashboard
+
+  services:
+    cbjml-dashboard:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: "http://cbjml-dashboard:8102"

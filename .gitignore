@@ -1,0 +1,13 @@
+# .gitignore
+.env
+*.env
+data_sensibles/
+*.xlsx
+respuestas_formulario.csv
+analisis.json
+datos_actualizados.json
+data_*.js
+__pycache__/
+*.pyc
+node_modules/
+.venv/
