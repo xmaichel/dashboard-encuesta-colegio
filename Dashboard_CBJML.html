@@ -38,6 +38,10 @@
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
           Abrir en Google Sheets
         </a>
+        <button id="updateBtn" onclick="updateDashboard()" class="inline-flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg text-sm font-medium transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+          <svg id="updateIcon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          <span id="updateText">Actualizar datos</span>
+        </button>
       </div>
     </div>
 
@@ -747,6 +751,38 @@ var QUOTES=[{"cambiar":"Regreso de Dios a las aulas porque esto se traduce en me
         list.appendChild(card);
       });
     }
+  
+    // Update dashboard function
+    async function updateDashboard() {
+      const btn = document.getElementById('updateBtn');
+      const icon = document.getElementById('updateIcon');
+      const text = document.getElementById('updateText');
+      
+      btn.disabled = true;
+      icon.classList.add('animate-spin');
+      text.textContent = 'Actualizando...';
+      
+      try {
+        const resp = await fetch('/api/update');
+        const data = await resp.json();
+        
+        if (data.success && data.reload) {
+          text.textContent = 'Actualizado!';
+          icon.classList.remove('animate-spin');
+          // Reload page after a short delay
+          setTimeout(() => location.reload(), 1000);
+        } else {
+          text.textContent = 'Error: ' + (data.message || 'desconocido');
+          btn.disabled = false;
+          icon.classList.remove('animate-spin');
+        }
+      } catch (err) {
+        text.textContent = 'Error de conexion';
+        btn.disabled = false;
+        icon.classList.remove('animate-spin');
+      }
+    }
+
   </script>
 </body>
 </html>
