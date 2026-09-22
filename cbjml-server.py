@@ -22,6 +22,9 @@ class DashboardHandler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == "/api/update":
             self.handle_update()
+        elif self.path == "/" or self.path == "/index.html":
+            self.path = "/Dashboard_CBJML.html"
+            super().do_GET()
         else:
             super().do_GET()
 

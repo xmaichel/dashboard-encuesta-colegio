@@ -160,7 +160,7 @@
             </div>
           </div>
           <div class="mt-4 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
-            <strong>Actualizado:</strong> El 4.2% percibe que "Se anticipa y responde de manera integral a estos cambios", invitando a una estrategia más integral y visible.
+            <span id="respCambioText"></span>
           </div>
         </div>
       </div>
@@ -168,8 +168,8 @@
       <!-- Fila 2: Demografía y Composición -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-          <h3 class="font-bold text-slate-900 text-sm mb-1">Nivel Escolar de los Hijos</h3>
-          <p class="text-xs text-slate-500 mb-4">Distribución de estudiantes matriculados</p>
+          <h3 class="font-bold text-slate-900 text-sm mb-1">Sección del Colegio</h3>
+          <p class="text-xs text-slate-500 mb-4">Infantil (Pre-K a 3°) · Prejuvenil (4° a 7°) · Juvenil (8° a 11°)</p>
           <div class="h-48">
             <canvas id="chartCursos"></canvas>
           </div>
@@ -460,16 +460,25 @@ var QUOTES=[{"cambiar":"Regreso de Dios a las aulas porque esto se traduce en me
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
-            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } },
+            tooltip: {
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = ((context.parsed / total) * 100).toFixed(1);
+                  return context.label + ': ' + context.parsed + ' (' + pct + '%)';
+                }
+              }
+            }
           }
         }
       });
 
-      const cursosAgg = { 'Bachillerato': 0, 'Primaria': 0, 'Preescolar': 0 };
+      const cursosAgg = { 'Juvenil': 0, 'Prejuvenil': 0, 'Infantil': 0 };
       QUOTES.forEach(q => {
-        if (q.nivel.includes('Bachillerato')) cursosAgg['Bachillerato']++;
-        if (q.nivel.includes('Primaria')) cursosAgg['Primaria']++;
-        if (q.nivel.includes('Preescolar')) cursosAgg['Preescolar']++;
+        if (q.nivel.includes('Juvenil')) cursosAgg['Juvenil']++;
+        if (q.nivel.includes('Prejuvenil')) cursosAgg['Prejuvenil']++;
+        if (q.nivel.includes('Infantil')) cursosAgg['Infantil']++;
       });
       new Chart(document.getElementById('chartCursos'), {
         type: 'pie',
@@ -477,7 +486,7 @@ var QUOTES=[{"cambiar":"Regreso de Dios a las aulas porque esto se traduce en me
           labels: Object.keys(cursosAgg),
           datasets: [{
             data: Object.values(cursosAgg),
-            backgroundColor: ['#1e40af', '#3b82f6', '#93c5fd']
+            backgroundColor: ['#dc2626', '#d97706', '#059669']
           }]
         },
         options: {
@@ -520,6 +529,11 @@ var QUOTES=[{"cambiar":"Regreso de Dios a las aulas porque esto se traduce en me
           plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } }
         }
       });
+      
+      // Update subtitle with percentages
+      const total = RESP_CAMBIOS.reduce((a, b) => a + b.count, 0);
+      const subtitle = RESP_CAMBIOS.map(r => r.label + ': ' + r.pct + '%').join('. ');
+      document.getElementById('respCambioText').innerHTML = '<strong>' + subtitle + '</strong>';
     }
 
     function initCalidadCharts() {
@@ -542,17 +556,6 @@ var QUOTES=[{"cambiar":"Regreso de Dios a las aulas porque esto se traduce en me
           scales: {
             x: { stacked: true, max: 100 },
             y: { stacked: true, ticks: { font: { size: 11 } } }
-          },
-          plugins: {
-            tooltip: {
-              callbacks: {
-                afterBody: function(items) {
-                  const item = items[0];
-                  const asp = sorted[item.dataIndex];
-                  return 'Satisfacción Favorable: ' + asp.satisfaccion_positiva_pct + '%';
-                }
-              }
-            }
           }
         }
       });

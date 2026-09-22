@@ -184,7 +184,7 @@ def compute_metrics(data):
     hijos_counter = Counter(row[2].strip() for row in rows if 2 < len(row) and row[2].strip())
     tiempo_counter = Counter(row[4].strip() for row in rows if 4 < len(row) and row[4].strip())
     freq_counter = Counter(row[5].strip() for row in rows if 5 < len(row) and row[5].strip())
-    orden_tiempo = ["Menos de 2 anos", "Entre 2 y 5 anos", "Entre 6 y 10 anos", "Mas de 10 anos"]
+    orden_tiempo = ["Menos de 2 años", "Entre 2 y 5 años", "Entre 6 y 10 años", "Más de 10 años"]
     orden_freq = ["Siempre", "Frecuentemente", "Algunas veces", "Casi nunca", "Nunca"]
     DEMO = {
         "total_respuestas": N,
@@ -197,10 +197,10 @@ def compute_metrics(data):
     resp_counter = Counter(row[29].strip() for row in rows if 29 < len(row) and row[29].strip())
     orden_resp = [
         "Se anticipa y responde de manera integral a estos cambios",
-        "Responde a la mayoria de los cambios de forma oportuna",
+        "Responde a la mayoría de los cambios de forma oportuna",
         "Responde a algunos cambios, pero no a otros",
         "Hay esfuerzos aislados, pero insuficientes",
-        "El Colegio no esta atendiendo estos cambios"
+        "El Colegio no está atendiendo estos cambios"
     ]
     RESP_CAMBIOS = [{"label": k, "count": resp_counter.get(k, 0), "pct": round(resp_counter.get(k, 0)/N*100, 1)} for k in orden_resp if resp_counter.get(k, 0) > 0]
     
@@ -237,12 +237,16 @@ def compute_metrics(data):
         antiguedad = row[4].strip() if 4 < len(row) else ""
         nivel = ""
         cl = curso.lower()
-        if "preescolar" in cl: nivel = "Preescolar"
-        if any(c in cl for c in ["primero", "segundo", "tercero", "cuarto", "quinto", "sexto"]):
-            nivel = "Primaria" if not nivel else "Preescolar, Primaria"
-        if any(c in cl for c in ["septimo", "octavo", "noveno", "decimo", "once", "undecimo"]):
-            nivel = "Bachillerato" if not nivel else ("Primaria, Bachillerato" if "Primaria" in nivel else "Preescolar, Bachillerato")
-        if not nivel: nivel = "General"
+        # Map to school sections: Infantil (Pre-K a 3°), Prejuvenil (4° a 7°), Juvenil (8° a 11°)
+        has_infantil = "preescolar" in cl or any(c in cl for c in ["primero", "segundo", "tercero"])
+        has_prejuvenil = any(c in cl for c in ["cuarto", "quinto", "sexto", "septimo"])
+        has_juvenil = any(c in cl for c in ["octavo", "noveno", "decimo", "once", "undecimo"])
+        
+        sections = []
+        if has_infantil: sections.append("Infantil")
+        if has_prejuvenil: sections.append("Prejuvenil")
+        if has_juvenil: sections.append("Juvenil")
+        nivel = ", ".join(sections) if sections else "General"
         if 51 < len(row) and row[51].strip(): t["cambiar"] = row[51].strip()
         if 27 < len(row) and row[27].strip(): t["no_perder"] = row[27].strip()
         if 54 < len(row) and row[54].strip(): t["ensenar"] = row[54].strip()
