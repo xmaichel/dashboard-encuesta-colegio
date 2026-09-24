@@ -1,107 +1,67 @@
 # Dashboard Encuesta CBJML — Colegio José Max León
 
-> Diagnóstico Estratégico Leonista 2026 — Datos en vivo desde Google Sheets
+> Diagnóstico Estratégico Leonista 2026 — datos sincronizados desde Google Sheets en modo de solo consulta.
 
-[🌐 Dashboard Live](https://cbjml-dashboard.ywzal8.easypanel.host/) · [📊 Google Sheets](https://docs.google.com/spreadsheets/d/1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY/edit)
-
----
-
-## Descripción
-
-Dashboard interactivo SPA (Single Page Application) que visualiza los resultados de la encuesta aplicada a las familias del Colegio José Max León (CBJML). Los datos se sincronizan desde Google Sheets mediante OAuth2 (rclone).
-
-**Muestra actual:** 96 familias  
-**Última actualización:** Septiembre 2026
-
----
+[🌐 Dashboard live](https://cbjml-dashboard.ywzal8.easypanel.host/)
 
 ## Arquitectura
 
+```text
+Google Sheets (solo lectura)
+    ↓ OAuth2
+etl_sync.py
+    ├─ dashboard_data.json (snapshot v2 anonimizado)
+    └─ Dashboard_CBJML.html (plantilla + CBJML_SNAPSHOT)
+    ↓
+cbjml-server.py
+    ├─ ETL al arrancar
+    └─ /api/update ETL serializado
+    ↓
+Docker Swarm → Traefik → HTTPS
 ```
-Google Sheets (Form Responses)
-    ↓ (OAuth2 via rclone refresh_token)
-Python ETL → dashboard_data.json
-    ↓
-Docker (python:3.12-slim) → http.server con Cache-Control no-store
-    ↓
-Docker Swarm → Traefik file provider → HTTPS (Let's Encrypt)
-    ↓
-https://cbjml-dashboard.ywzal8.easypanel.host/
-```
 
----
+El servidor entrega una plantilla estable y un runtime externo (`dashboard_runtime.js`). El navegador calcula cada módulo a partir del snapshot de respuestas anonimizadas, por lo que los filtros recalculan KPIs, tablas, gráficos, Matriz, nube y citas.
 
-## Componentes
+## Archivos
 
-| Archivo | Descripción |
-|---------|-------------|
-| `Dashboard_CBJML.html` | Dashboard SPA con Chart.js + Tailwind CSS, datos inlined |
-| `dashboard_data.json` | Datos procesados desde Google Sheets (fuente de verdad) |
-| `cbjml-server.py` | Servidor estático Python con Cache-Control no-store |
-| `Dockerfile` | Imagen Docker para el dashboard |
-| `ops/traefik/cbjml-dashboard.yml` | Configuración Traefik (file provider) |
+- `Dashboard_CBJML.html`: plantilla estable, logo, filtros, cinco pestañas y contenedores de render.
+- `dashboard_runtime.js`: render, filtros, persistencia UI, gráficos y accesibilidad.
+- `etl_sync.py`: lectura de Sheets, normalización, snapshot atómico e inyección segura.
+- `cbjml-server.py`: servidor estático con allowlist pública, healthcheck y actualización serializada.
+- `test_dashboard_metrics.py`: pruebas sintéticas de datos, filtros conceptuales, matriz, nube, privacidad e idempotencia.
+- `Dockerfile`: imagen mínima de producción.
 
-**Datos excluidos de Git:** `.xlsx`, `.csv`, `data_*.js`, `analisis.json` (contienen emails y datos personales).
+La plantilla vive en Git; el snapshot generado en runtime (`dashboard_data.json` y `CBJML_SNAPSHOT`) no se versiona.
 
----
 
-## Módulos del Dashboard
+## Actualización
 
-1. **Resumen Ejecutivo & KPIs** — Síntesis estratégica, demografía, respuesta al cambio
-2. **Calidad de Aspectos (12 Dimensiones)** — Gráfico stacked + tabla de desempeño
-3. **Matriz de Acción** — Mantener / Mejorar / Transformar (13 frentes)
-4. **Retos Actuales & Futuro** — Ranking de urgencia, diferencias generacionales, iniciativas
-5. **Identidad & Voz de Familias** — Nube de palabras, buscador de testimonios
+El botón **Actualizar datos** llama `GET /api/update`. La respuesta ejecuta exactamente el mismo ETL que corre al arrancar. Google Sheets nunca se escribe. El servidor solo publica la plantilla, el runtime y sus dos endpoints de operación; el snapshot y el código fuente responden `404`.
 
----
-
-## KPIs actuales (96 familias)
-
-| KPI | Valor |
-|-----|-------|
-| Bienestar Hijo(a) | 90.6% |
-| Coincidencia Valores | 92.8% |
-| Comunidad Leonista | 91.6% |
-| Participación Activa | 93.8% |
-| Disposición Aporte | 95.8% |
-| Iniciativa Top | Educación financiera 78.1% |
-
-### Retos urgentes
-1. **Salud mental, ansiedad y bienestar emocional** — media 2.46, 63.5% top1-2
-2. **Uso excesivo de pantallas y redes sociales** — media 2.69, 61.5% top1-2
-3. **Inteligencia artificial y nuevas formas de aprender** — media 2.92, 50.0% top1-2
-
----
-
-## Deploy
-
-### Requisitos
-- VPS Contabo con Docker Swarm + Easypanel + Traefik
-- rclone configurado con Google Drive OAuth2
-
-### Actualizar datos + redeploy
 ```bash
 cd /root/projects/dashboard-encuesta-colegio
-# 1. Sync datos desde Google Sheets (script ETL)
-python3 -c "..."  # Ver SPEC.md §ETL
-# 2. Build + deploy
+python3 -m unittest -v test_dashboard_metrics.py
+node --check dashboard_runtime.js
 docker build --no-cache -t cbjml-dashboard:latest .
 docker service update --image cbjml-dashboard:latest --force cbjml-dashboard
+curl -sk https://cbjml-dashboard.ywzal8.easypanel.host/api/health
 ```
 
-### Actualizar ruta Traefik
-```bash
-TRAEFIK_CID=$(docker ps --format '{{.Names}}' | grep '^easypanel-traefik\.' | head -1)
-docker cp ops/traefik/cbjml-dashboard.yml "$TRAEFIK_CID:/data/config/cbjml-dashboard.yml"
-TRAF_PID=$(docker exec "$TRAEFIK_CID" pidof traefik)
-docker exec "$TRAEFIK_CID" kill -HUP "$TRAF_PID"
-```
+## Filtros y persistencia
 
----
+Filtros disponibles: colegio total, sección, antigüedad y curso. Se guardan en `localStorage` junto con la pestaña activa y el estado del panel. La selección se conserva al cambiar de pestaña y al recargar.
+
+La nube de palabras normaliza tildes, elimina términos sin contexto como `cada` y `estudiantes`, y combina variantes. Las respuestas de la Matriz usan la opción predominante; los empates se muestran explícitamente y cada área aparece una sola vez.
 
 ## Privacidad
 
-- **Fuente:** Google Sheets (Form Responses del formulario CBJML)
-- **Sheet ID:** `1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY`
-- **Autenticación:** OAuth2 via rclone (`~/.config/rclone/rclone.conf`)
-- **Git:** `.gitignore` excluye `.xlsx`, `.csv` y archivos con datos crudos
+El snapshot no incluye timestamp, correo ni columnas personales. Los textos libres se limpian y se redactan correos, enlaces, teléfonos y nombres explícitos cuando aparecen con títulos como “Sr.” o “profesor” antes de publicarse. `.gitignore` excluye credenciales, archivos crudos, snapshots locales y artefactos de QA.
+
+## Verificación realizada
+
+- `py_compile`: correcto.
+- `node --check dashboard_runtime.js`: correcto.
+- `python3 -m unittest -v test_dashboard_metrics.py`: 18 pruebas OK.
+- QA local con 149 respuestas: filtros cambian KPIs, tablas, Matriz, nube y citas; no hay áreas duplicadas.
+- QA responsive: sin overflow horizontal a 375 px ni 320 px; una sola barra sticky de pregunta; logo carga con fallback.
+- QA de producción: `213` familias, snapshot v2, cinco pestañas, filtros persistentes, `/api/update` exitoso y assets runtime bloqueados (`404`).

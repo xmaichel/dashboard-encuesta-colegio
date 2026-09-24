@@ -1,98 +1,83 @@
 # AGENT.md — CBJML Survey Dashboard
 
-## 1. Identidad y Propósito
+## Propósito
 
-Dashboard interactivo de la encuesta de familias del **Colegio José Max León (CBJML)** — Diagnóstico Estratégico Leonista 2026. El agente actúa como analista de datos educativos: procesa respuestas, calcula métricas, actualiza el dashboard y mantiene la coherencia estadística.
+Dashboard ejecutivo de la encuesta de familias del Colegio José Max León (CBJML). El agente mantiene el pipeline de solo lectura, la anonimización, los cálculos y el deploy.
 
-## 2. Fuentes de Datos
+## Fuente de datos
 
-| Recurso | ID / URL | Uso |
-|---------|----------|-----|
-| Google Drive Folder | `1gCNTNLva5Orc2NYEZEQop7f1iC2727Ir` (FormEcuestaCol_JML) | Archivos del proyecto |
-| Google Sheets | `1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY` | Respuestas en vivo |
-| Dashboard URL | https://cbjml-dashboard.ywzal8.easypanel.host/ | Producción |
+- Google Drive: `1gCNTNLva5Orc2NYEZEQop7f1iC2727Ir` (`FormEcuestaCol_JML`).
+- Google Sheets: `1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY`.
+- Hoja: `Respuestas de formulario 1`.
+- Dashboard: `https://cbjml-dashboard.ywzal8.easypanel.host/`.
+- Proyecto: `/root/projects/dashboard-encuesta-colegio/`.
+- Sheet es estrictamente **solo lectura**.
 
-**Autenticación:** rclone con Google Drive OAuth2. Token en `~/.config/rclone/rclone.conf`. El refresh_token se renueva automáticamente.
+La autenticación se configura en el servicio con `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN`. Nunca copiar valores a Git ni logs. La plantilla vive en Git; el snapshot generado en runtime (`dashboard_data.json` y `CBJML_SNAPSHOT`) no se versiona.
 
-## 3. Estructura del Sheet
+## Estructura del Sheet
 
-Hoja: `Respuestas de formulario 1` — ~56 columnas, 1 fila por respuesta.
+- 0–1: marca temporal y correo; se descartan.
+- 2–5: número de hijos, cursos, antigüedad y participación.
+- 6–17: 12 aspectos (escala de cinco opciones).
+- 18–19: identidad y tres palabras.
+- 20–26: 7 afirmaciones.
+- 27: texto libre “qué no perder”.
+- 28: diferencias generacionales.
+- 29: respuesta a cambios.
+- 30–36: ranking de 7 retos.
+- 37: texto libre complementario.
+- 38–50: 13 áreas de acción.
+- 51: texto libre “qué cambiar/mejorar”.
+- 52: iniciativas.
+- 53: disposición a colaborar.
+- 54–55: textos finales.
 
-### Columnas clave
-| Rango | Descripción |
-|-------|-------------|
-| 0-1 | Timestamp, Email |
-| 2-5 | Demografía (hijos, cursos, antigüedad, participación) |
-| 6-17 | 12 Aspectos Formativos (Escala: Excelente/Bueno/Aceptable/Deficiente/No conozco) |
-| 18-19 | Identidad (multi-select máx 5), 3 palabras únicas |
-| 20-26 | Afirmaciones (Totalmente de acuerdo / De acuerdo / Ni acuerdo ni desacuerdo / En desacuerdo / Totalmente en desacuerdo) |
-| 27 | Texto libre: qué no perder |
-| 28 | Diferencias generacionales (multi-select máx 5) |
-| 29 | Respuesta al cambio (categoría única) |
-| 30-36 | 7 Retos (Ranking 1-7, 1=más urgente) |
-| 37 | Texto libre: qué no se aborda |
-| 38-50 | 13 Áreas de acción (Mantener / Mejorar / Transformar / No prioritario) |
-| 51 | Texto libre: un cambio |
-| 52 | Iniciativas (multi-select máx 5) |
-| 53 | Disposición a colaborar (multi-select) |
-| 54-55 | Texto libre: frase final, recomendación |
+## Pipeline vigente
 
-## 4. Reglas de Procesamiento
-
-### Escalas
-- **Aspectos Formativos (cols 6-17):** `Excelente`(4) + `Bueno`(3) = Satisfacción Favorable. Semáforo: ≥90% Verde, 80-89.9% Azul, <80% Ámbar.
-- **Afirmaciones (cols 20-26):** `Totalmente de acuerdo` + `De acuerdo` = Acuerdo Total.
-- **Retos (cols 30-36):** Media aritmética (menor = más urgente) + % en Rank 1-2.
-- **Matriz (cols 38-50):** Categoría predominante define acción. `Transformar` >20% = alerta.
-
-### Multi-select con comas internas
-⚠️ Opciones como `"Actividades artísticas, culturales y deportivas"` contienen comas. **NO separar por comas** — matchear contra lista de opciones canónicas exactas.
-
-### Privacidad
-- Anonimizar emails en cualquier output público.
-- No commitear `.xlsx`, `.csv` ni archivos con datos crudos.
-
-## 5. Workflow de Actualización
-
-1. **Descargar datos** desde Google Sheets via Google Sheets API (OAuth2 rclone)
-2. **Calcular métricas** → generar `dashboard_data.json`
-3. **Inyectar datos** en `Dashboard_CBJML.html` (reemplazar sección JS entre `// Datos cargados` y `// Navegación por pestañas`)
-4. **Build Docker** → `docker build --no-cache -t cbjml-dashboard:latest .`
-5. **Deploy Swarm** → `docker service update --image cbjml-dashboard:latest --force cbjml-dashboard`
-6. **Verificar** → `curl -sk https://cbjml-dashboard.ywzal8.easypanel.host/ | grep "96 familias"`
-
-## 6. Infraestructura
-
-- **VPS:** Contabo 194.34.232.193 (Ubuntu 22.04, Docker Swarm)
-- **Traefik:** file provider en `/etc/easypanel/traefik/config/cbjml-dashboard.yml`
-- **Puerto servicio:** 8102
-- **Red:** easypanel (overlay)
-
-### Traefik config
-```yaml
-http:
-  routers:
-    cbjml-dashboard-http:
-      rule: "Host(`cbjml-dashboard.ywzal8.easypanel.host`)"
-      entrypoints: [http]
-      middlewares: [redirect-to-https]
-      service: cbjml-dashboard
-    cbjml-dashboard-https:
-      rule: "Host(`cbjml-dashboard.ywzal8.easypanel.host`)"
-      entrypoints: [https]
-      tls: { certResolver: letsencrypt, domains: [{ main: cbjml-dashboard.ywzal8.easypanel.host }] }
-      service: cbjml-dashboard
-  services:
-    cbjml-dashboard:
-      loadBalancer:
-        passHostHeader: true
-        servers: [{ url: "http://cbjml-dashboard:8102" }]
+```text
+OAuth2 → Sheets values.get → build_snapshot()
+→ inject_snapshot() → validate_rendered_html()
+→ dashboard_data.json + Dashboard_CBJML.html
+→ cbjml-server.py + dashboard_runtime.js
 ```
 
-## 7. Pitfalls
+`etl_sync.py` corre al arrancar y en `GET /api/update`; un lock serializa actualizaciones. La inyección reemplaza un bloque delimitado, no concatena ni ejecuta parches HTML. `dashboard_data.json` se genera en runtime y no se versiona.
 
-- ❌ **No usar `python -m http.server`** — no envía Cache-Control → navegador cachea HTML stale. Usar `cbjml-server.py` con no-store.
-- ❌ **No separar multi-select por comas** — las opciones canónicas contienen comas internas.
-- ❌ **No commitear datos crudos** — `.xlsx`, `.csv` están en `.gitignore`.
-- ❌ **No usar `write_file` en `/etc/systemd`** — usar terminal con heredoc.
-- ✅ **Siempre verificar post-deploy** con curl al URL público, no solo local.
+## Cálculos
+
+- Aspectos: `Excelente + Bueno` sobre respuestas válidas.
+- Afirmaciones: `Totalmente de acuerdo + De acuerdo`.
+- Retos: media de ranking; menor es más urgente; también `%` top 1–2.
+- Matriz: cada clave aparece una vez; se asigna al modal de la respuesta; empate explícito.
+- Multiselección: match contra opciones canónicas; nunca separar internamente por comas.
+- Nube: normalizar Unicode, combinar tildes y eliminar stop words/contexto.
+- KPIs y filtros: se recalculan en `dashboard_runtime.js` desde el snapshot v2.
+
+## Privacidad
+
+El snapshot público excluye timestamp, correo y columnas personales. Los textos libres se limpian y redaccionan emails, URLs, teléfonos y nombres explícitos cuando aparecen con títulos de persona antes de inyectarse. La palabra cruda no se persiste. `.gitignore` excluye datos, CSV/XLSX, `.env` y artefactos de QA.
+
+## Verificación y deploy
+
+```bash
+cd /root/projects/dashboard-encuesta-colegio
+python3 -m unittest -v test_dashboard_metrics.py
+node --check dashboard_runtime.js
+docker build --no-cache -t cbjml-dashboard:latest .
+docker service update --image cbjml-dashboard:latest --force cbjml-dashboard
+curl -sk https://cbjml-dashboard.ywzal8.easypanel.host/api/health
+# Verificar que /dashboard_data.json, /etl_sync.py y /.env devuelven 404.
+```
+
+Verificar siempre el contenedor nuevo, la URL pública y el navegador; no confiar solo en `HTTP 200` o en el estado `1/1` de Swarm. El servidor solo expone `/`, `/Dashboard_CBJML.html` y `/dashboard_runtime.js`; los artefactos de runtime y el código fuente deben responder `404`.
+
+## Pitfalls
+
+- No separar multiselección por comas.
+- No buscar `septimo`/`decimo` sin normalizar tildes primero.
+- No usar el snapshot agregado antiguo para filtros por familia.
+- No ejecutar scripts legacy de postprocesado.
+- No incluir `Google Sheets` como enlace de escritura o como fuente modificable.
+- No reutilizar puertos ni dominios; leer `/root/projects/INDEX.md`.
+- No usar `web`/`websecure` como entrypoints: en este VPS son `http`/`https`.

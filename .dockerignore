@@ -1,0 +1,15 @@
+.env
+*.env
+data_sensibles/
+*.xlsx
+*.csv
+*.json
+__qa_*.html
+data_*.js
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.dockerignore
+node_modules/
+.venv/

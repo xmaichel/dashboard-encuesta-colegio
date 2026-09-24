@@ -1,337 +1,415 @@
 #!/usr/bin/env python3
-"""ETL: Download latest data from Google Sheets and regenerate dashboard HTML."""
-import json, os, sys, re
-import urllib.request
+"""ETL transaccional para respuestas anonimizadas del dashboard CBJML."""
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+import tempfile
+import unicodedata
 import urllib.parse
-import csv
-import io
+import urllib.request
 from collections import Counter
+from pathlib import Path
+from typing import Any
 
-# Google OAuth config from env vars
-CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-REFRESH_TOKEN = os.environ.get("GOOGLE_REFRESH_TOKEN", "")
 SHEET_ID = "1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY"
-DASHBOARD_DIR = "/app"
+SHEET_RANGE = "Respuestas de formulario 1"
+DASHBOARD_DIR = Path(os.environ.get("CBJML_ROOT", "/app"))
+HTML_PATH = DASHBOARD_DIR / "Dashboard_CBJML.html"
+JSON_PATH = DASHBOARD_DIR / "dashboard_data.json"
+SCHEMA_VERSION = 2
+EXPECTED_COLUMNS = 56
 
-def refresh_token():
-    """Refresh OAuth2 access token."""
-    data = urllib.parse.urlencode({
-        "client_id": CLIENT_ID,
-        "client_secret": CLIENT_SECRET,
-        "refresh_token": REFRESH_TOKEN,
-        "grant_type": "refresh_token"
-    }).encode()
-    req = urllib.request.Request("https://oauth2.googleapis.com/token", data=data)
-    with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read())["access_token"]
+DATA_START = "/* CBJML_DATA_START */"
+DATA_END = "/* CBJML_DATA_END */"
+DATA_RE = re.compile(re.escape(DATA_START) + r".*?" + re.escape(DATA_END), re.DOTALL)
 
-def fetch_sheet():
-    """Fetch all rows from Google Sheets."""
-    token = refresh_token()
-    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/Respuestas%20de%20formulario%201?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE"
-    req = urllib.request.Request(url)
-    req.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(req, timeout=30) as resp:
-        data = json.loads(resp.read())
-        return data.get("values", [])
+SCALE_OPTIONS = ["Excelente", "Bueno", "Aceptable", "Deficiente", "No conozco lo suficiente"]
+AGREEMENT_OPTIONS = ["Totalmente de acuerdo", "De acuerdo", "Ni de acuerdo ni en desacuerdo", "En desacuerdo", "Totalmente en desacuerdo"]
+MATRIX_ACTIONS = ["Mantener", "Mejorar", "Transformar", "No prioritario"]
+PARTICIPATION_ORDER = ["Siempre", "Frecuentemente", "Algunas veces", "Rara vez", "Casi nunca", "Nunca"]
+ANTIGUEDAD_ORDER = ["Menos de 2 años", "Entre 2 y 5 años", "Entre 6 y 10 años", "Más de 10 años"]
+CHANGE_RESPONSE_ORDER = [
+    "Se anticipa y responde de manera integral a estos cambios",
+    "Responde a la mayoría de los cambios de forma oportuna",
+    "Responde a algunos cambios, pero no a otros",
+    "Hay esfuerzos aislados, pero insuficientes",
+    "El Colegio no está atendiendo estos cambios",
+]
+IDENTITY_OPTIONS = [
+    "Tradiciones y celebraciones", "Sentido de comunidad", "Programa de emprendimiento",
+    "Desarrollo de competencias tecnológicas", "Escuela de argumentación",
+    "Relación entre el Colegio y las familias", "Actividades artísticas, culturales y deportivas",
+    "Cercanía y acompañamiento a los estudiantes", "Programa SER / Programa CARE",
+    "Proyección internacional de los estudiantes", "Excelencia académica", "Formación en valores",
+]
+DIFFERENCE_OPTIONS = [
+    "Relación con la tecnología y las redes sociales", "Forma de aprender", "Necesidades socioemocionales",
+    "Atención y concentración", "Relación con la autoridad y los profesores", "Expectativas frente al futuro",
+    "Relación con la información", "Relación con sus compañeros",
+]
+INITIATIVE_OPTIONS = [
+    "Esquemas de reconocimiento monetario a estudiantes destacados",
+    "Inteligencia artificial responsable, programación y robótica", "Liderazgo, debate y oratoria",
+    "Emprendimiento y proyectos con impacto social", "Voluntariado y servicio comunitario",
+    "Mentoría profesional o de emprendimiento", "Mentoría entre estudiantes mayores y menores",
+    "Orientación vocacional desde grados tempranos",
+    "Programa de salud mental y bienestar", "Arte y deporte de alto rendimiento", "Proyectos interdisciplinarios",
+    "Educación financiera", "Red de exalumnos y familias",
+]
+CONTRIBUTION_OPTIONS = [
+    "Respondiendo consultas como esta", "Voluntariado en eventos, proyectos sociales, culturales o deportivos",
+    "Talleres o espacios para padres", "Charlas o talleres para estudiantes",
+    "Mentoría profesional o de emprendimiento", "Por ahora no me es posible participar",
+]
+COURSE_ORDER = ["Preescolar", "Primero", "Segundo", "Tercero", "Cuarto", "Quinto", "Sexto", "Séptimo", "Octavo", "Noveno", "Décimo", "Undécimo"]
+COURSE_TO_SECTION = {
+    "preescolar": "Infantil", "primero": "Infantil", "segundo": "Infantil", "tercero": "Infantil",
+    "cuarto": "Prejuvenil", "quinto": "Prejuvenil", "sexto": "Prejuvenil", "septimo": "Prejuvenil",
+    "octavo": "Juvenil", "noveno": "Juvenil", "decimo": "Juvenil", "undecimo": "Juvenil",
+}
+WORD_PRESENTATION = {
+    "critico": "Crítico", "formacion": "Formación", "participacion": "Participación", "comunicacion": "Comunicación",
+    "educacion": "Educación", "etica": "Ética", "tecnologia": "Tecnología", "ingles": "Inglés", "practica": "Práctica",
+    'matematica': 'Matemática', 'matematicas': 'Matemáticas', 'cercania': 'Cercanía', 'academica': 'Académica',
+    'empatia': 'Empatía', 'critica': 'Crítica', 'autonomia': 'Autonomía', 'acompanamiento': 'Acompañamiento',
+    'bilinguismo': 'Bilingüismo', 'empatico': 'Empático', 'etico': 'Ético', 'ninos': 'Niños', 'chicos': 'Chicos',
+}
+WORD_STOP_KEYS = {
+    "cada", "estudiantes", "estudiante", "el", "la", "los", "las", "de", "del", "que", "en", "un", "una", "uno",
+    "unos", "unas", "por", "con", "para", "se", "sus", "su", "al", "y", "es", "son", "mas", "muy", "como", "todo",
+    "todos", "toda", "todas", "lo", "mi", "mis", "hijo", "hija", "hijos", "hijas", "no", "le", "les", "ni", "si",
+    "hay", "ha", "he", "tienen", "tiene", "tener", "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas",
+    "sino", "sobre", "entre", "desde", "hasta", "sin", "tras", "durante", "mediante", "segun", "excepto", "hacia",
+    "a", "ante", "bajo", "contra", "o", "u", "e", "pues", "porque", "cuando", "donde", "quien", "cual", "cuyo",
+    "cuya", "cuyos", "cuyas", "cuanto", "cuanta", "cuantos", "cuantas", "familias", "colegio",
+}
 
-def compute_metrics(data):
-    """Compute all metrics from raw sheet data."""
-    headers = data[0]
-    rows = data[1:]
-    N = len(rows)
-    
-    # ASPECTOS (cols 6-17)
-    ASPECTOS = []
-    for i in range(6, 18):
-        col_header = headers[i]
-        match = re.search(r"\[(.*?)\]", col_header)
-        nombre = match.group(1) if match else col_header
-        counter = Counter()
-        for row in rows:
-            val = row[i].strip() if i < len(row) else ""
-            if val: counter[val] += 1
-        total = sum(counter.values())
-        def pct(k, t=total): return round(counter.get(k, 0) / t * 100, 1) if t > 0 else 0.0
-        ASPECTOS.append({
-            "aspecto": nombre,
-            "Excelente": {"count": counter.get("Excelente", 0), "pct": pct("Excelente")},
-            "Bueno": {"count": counter.get("Bueno", 0), "pct": pct("Bueno")},
-            "Aceptable": {"count": counter.get("Aceptable", 0), "pct": pct("Aceptable")},
-            "Deficiente": {"count": counter.get("Deficiente", 0), "pct": pct("Deficiente")},
-            "No conozco lo suficiente": {"count": counter.get("No conozco lo suficiente", 0), "pct": pct("No conozco lo suficiente")},
-            "satisfaccion_positiva_pct": round(pct("Excelente") + pct("Bueno"), 1)
-        })
-    
-    # AFIRMACIONES (cols 20-26)
-    AFIRMACIONES = []
-    for i in range(20, 27):
-        col_header = headers[i]
-        match = re.search(r"\[(.*?)\]", col_header)
-        afirmacion = match.group(1) if match else col_header
-        counter = Counter()
-        for row in rows:
-            val = row[i].strip() if i < len(row) else ""
-            if val: counter[val] += 1
-        total = sum(counter.values())
-        def pct(k, t=total): return round(counter.get(k, 0) / t * 100, 1) if t > 0 else 0.0
-        AFIRMACIONES.append({
-            "afirmacion": afirmacion,
-            "Totalmente de acuerdo": {"count": counter.get("Totalmente de acuerdo", 0), "pct": pct("Totalmente de acuerdo")},
-            "De acuerdo": {"count": counter.get("De acuerdo", 0), "pct": pct("De acuerdo")},
-            "Ni de acuerdo ni en desacuerdo": {"count": counter.get("Ni de acuerdo ni en desacuerdo", 0), "pct": pct("Ni de acuerdo ni en desacuerdo")},
-            "En desacuerdo": {"count": counter.get("En desacuerdo", 0), "pct": pct("En desacuerdo")},
-            "Totalmente en desacuerdo": {"count": counter.get("Totalmente en desacuerdo", 0), "pct": pct("Totalmente en desacuerdo")},
-            "acuerdo_total_pct": round(pct("Totalmente de acuerdo") + pct("De acuerdo"), 1)
-        })
-    
-    # RETOS (cols 30-36)
-    RETOS = []
-    for i in range(30, 37):
-        col_header = headers[i]
-        match = re.search(r"\[(.*?)\]", col_header)
-        nombre = match.group(1) if match else col_header
-        values = []
-        dist = Counter()
-        for row in rows:
-            val = row[i].strip() if i < len(row) else ""
-            if val:
-                try:
-                    v = int(val); values.append(v); dist[f"Rank {v}"] += 1
-                except: pass
-        if values:
-            media = round(sum(values)/len(values), 2)
-            mediana = sorted(values)[len(values)//2]
-            top2 = sum(1 for v in values if v <= 2)
-            top2_pct = round(top2/len(values)*100, 1)
-        else: media = 0; mediana = 0; top2_pct = 0
-        RETOS.append({"reto": nombre, "media_urgencia": media, "mediana": mediana, "top2_pct": top2_pct, "distribucion": dict(sorted(dist.items()))})
-    
-    # MATRIZ (cols 38-50)
-    MATRIZ = []
-    for i in range(38, 51):
-        col_header = headers[i]
-        match = re.search(r"\[(.*?)\]", col_header)
-        nombre = match.group(1) if match else col_header
-        counter = Counter()
-        for row in rows:
-            val = row[i].strip() if i < len(row) else ""
-            if val: counter[val] += 1
-        total = sum(counter.values())
-        def pct(k, t=total): return round(counter.get(k, 0) / t * 100, 1) if t > 0 else 0.0
-        MATRIZ.append({
-            "area": nombre,
-            "Mantener": {"count": counter.get("Mantener", 0), "pct": pct("Mantener")},
-            "Mejorar": {"count": counter.get("Mejorar", 0), "pct": pct("Mejorar")},
-            "Transformar": {"count": counter.get("Transformar", 0), "pct": pct("Transformar")},
-            "No prioritario": {"count": counter.get("No prioritario", 0), "pct": pct("No prioritario")}
-        })
-    
-    # Multi-select helpers
-    def match_options(col_idx, options):
-        counter = Counter()
-        for row in rows:
-            val = row[col_idx].strip() if col_idx < len(row) else ""
-            if val:
-                for opcion in options:
-                    if opcion.lower() in val.lower():
-                        counter[opcion] += 1
-        return [{"opcion": k, "count": v, "pct": round(v/N*100, 1)} for k, v in counter.most_common()]
-    
-    ID_OPCIONES = [
-        "Tradiciones y celebraciones", "Sentido de comunidad", "Programa de emprendimiento",
-        "Desarrollo de competencias tecnológicas", "Escuela de argumentación",
-        "Relación entre el Colegio y las familias", "Actividades artísticas, culturales y deportivas",
-        "Cercanía y acompañamiento a los estudiantes", "Programa SER / Programa CARE",
-        "Proyección internacional de los estudiantes", "Excelencia académica", "Formación en valores",
-    ]
-    IDENTIDAD = match_options(18, ID_OPCIONES)
-    
-    DIF_OPCIONES = [
-        "Relación con la tecnología y las redes sociales", "Forma de aprender",
-        "Necesidades socioemocionales", "Atención y concentración",
-        "Relación con la autoridad y los profesores", "Expectativas frente al futuro",
-        "Relación con la información", "Relación con sus compañeros",
-    ]
-    DIFERENCIAS = match_options(28, DIF_OPCIONES)
-    
-    IN_OPCIONES = [
-        "Esquemas de reconocimiento monetario a estudiantes destacados",
-        "Inteligencia artificial responsable, programación y robótica",
-        "Liderazgo, debate y oratoria", "Emprendimiento y proyectos con impacto social",
-        "Voluntariado y servicio comunitario", "Mentoría profesional o de emprendimiento",
-        "Orientación vocacional desde grados tempranos", "Programa de salud mental y bienestar",
-        "Arte y deporte de alto rendimiento", "Proyectos interdisciplinarios",
-        "Educación financiera", "Red de exalumnos y familias",
-    ]
-    INICIATIVAS = match_options(52, IN_OPCIONES)
-    
-    colab_opciones = [
-        "Respondiendo consultas como esta", "Voluntariado en eventos, proyectos sociales, culturales o deportivos",
-        "Talleres o espacios para padres", "Charlas o talleres para estudiantes",
-        "Mentoría profesional o de emprendimiento", "Por ahora no me es posible participar"
-    ]
-    colab_counter = Counter()
-    for row in rows:
-        val = row[53].strip() if 53 < len(row) else ""
-        if val:
-            for opcion in colab_opciones:
-                if opcion.lower() in val.lower(): colab_counter[opcion] += 1
-    APORTE = [{"opcion": k, "count": v, "pct": round(v/N*100, 1)} for k, v in colab_counter.most_common()]
-    
-    # DEMO
-    hijos_counter = Counter(row[2].strip() for row in rows if 2 < len(row) and row[2].strip())
-    tiempo_counter = Counter(row[4].strip() for row in rows if 4 < len(row) and row[4].strip())
-    freq_counter = Counter(row[5].strip() for row in rows if 5 < len(row) and row[5].strip())
-    orden_tiempo = ["Menos de 2 años", "Entre 2 y 5 años", "Entre 6 y 10 años", "Más de 10 años"]
-    orden_freq = ["Siempre", "Frecuentemente", "Algunas veces", "Casi nunca", "Nunca"]
-    DEMO = {
-        "total_respuestas": N,
-        "hijos": [{"label": k, "count": v, "pct": round(v/N*100, 1)} for k, v in sorted(hijos_counter.items(), key=lambda x: -x[1])],
-        "antiguedad": [{"label": k, "count": tiempo_counter.get(k, 0), "pct": round(tiempo_counter.get(k, 0)/N*100, 1)} for k in orden_tiempo if tiempo_counter.get(k, 0) > 0],
-        "participacion": [{"label": k, "count": freq_counter.get(k, 0), "pct": round(freq_counter.get(k, 0)/N*100, 1)} for k in orden_freq if freq_counter.get(k, 0) > 0]
-    }
-    
-    # RESP_CAMBIOS
-    resp_counter = Counter(row[29].strip() for row in rows if 29 < len(row) and row[29].strip())
-    orden_resp = [
-        "Se anticipa y responde de manera integral a estos cambios",
-        "Responde a la mayoría de los cambios de forma oportuna",
-        "Responde a algunos cambios, pero no a otros",
-        "Hay esfuerzos aislados, pero insuficientes",
-        "El Colegio no está atendiendo estos cambios"
-    ]
-    RESP_CAMBIOS = [{"label": k, "count": resp_counter.get(k, 0), "pct": round(resp_counter.get(k, 0)/N*100, 1)} for k in orden_resp if resp_counter.get(k, 0) > 0]
-    
-    # KPIS
-    retos_sorted = sorted(RETOS, key=lambda x: x["media_urgencia"])
-    KPIS = {
-        "bienestar_hijos_pct": AFIRMACIONES[5]["acuerdo_total_pct"],
-        "comunidad_leonista_pct": AFIRMACIONES[6]["acuerdo_total_pct"],
-        "coincidencia_valores_pct": AFIRMACIONES[1]["acuerdo_total_pct"],
-        "identidad_diferenciada_pct": AFIRMACIONES[0]["acuerdo_total_pct"],
-        "participacion_activa_pct": round((freq_counter.get("Siempre", 0) + freq_counter.get("Frecuentemente", 0)) / N * 100, 1),
-        "reto_urgente_1": retos_sorted[0]["reto"], "reto_urgente_1_pct": retos_sorted[0]["top2_pct"],
-        "reto_urgente_2": retos_sorted[1]["reto"], "reto_urgente_2_pct": retos_sorted[1]["top2_pct"],
-        "iniciativa_top_1": INICIATIVAS[0]["opcion"] if INICIATIVAS else "", "iniciativa_top_1_pct": INICIATIVAS[0]["pct"] if INICIATIVAS else 0,
-        "disposicion_aporte_pct": round((N - colab_counter.get("Por ahora no me es posible participar", 0)) / N * 100, 1)
-    }
-    
-    # TOP_WORDS
-    palabras = []
-    for row in rows:
-        val = row[19].strip() if 19 < len(row) else ""
-        if val:
-            for w in val.split():
-                w = w.strip(".,;:()[]{}\"\'").capitalize()
-                if len(w) > 3: palabras.append(w)
-    palabras_counter = Counter(palabras)
-    TOP_WORDS = [{"palabra": k, "frecuencia": v} for k, v in palabras_counter.most_common(20) if v >= 2]
-    
-    # QUOTES
-    QUOTES = []
-    for idx, row in enumerate(rows):
-        t = {}
-        curso = row[3].strip() if 3 < len(row) else ""
-        antiguedad = row[4].strip() if 4 < len(row) else ""
-        nivel = ""
-        cl = curso.lower()
-        # Map to school sections: Infantil (Pre-K a 3°), Prejuvenil (4° a 7°), Juvenil (8° a 11°)
-        has_infantil = "preescolar" in cl or any(c in cl for c in ["primero", "segundo", "tercero"])
-        has_prejuvenil = any(c in cl for c in ["cuarto", "quinto", "sexto", "septimo"])
-        has_juvenil = any(c in cl for c in ["octavo", "noveno", "decimo", "once", "undecimo"])
-        
-        sections = []
-        if has_infantil: sections.append("Infantil")
-        if has_prejuvenil: sections.append("Prejuvenil")
-        if has_juvenil: sections.append("Juvenil")
-        nivel = ", ".join(sections) if sections else "General"
-        if 51 < len(row) and row[51].strip(): t["cambiar"] = row[51].strip()
-        if 27 < len(row) and row[27].strip(): t["no_perder"] = row[27].strip()
-        if 54 < len(row) and row[54].strip(): t["ensenar"] = row[54].strip()
-        if 55 < len(row) and row[55].strip(): t["recomendar"] = row[55].strip()
-        if t:
-            for key in ["cambiar", "no_perder", "ensenar", "recomendar"]:
-                if key in t: t[key] = t[key].replace("\n", " ")
-            t["id"] = idx + 1; t["curso"] = curso; t["nivel"] = nivel; t["antiguedad"] = antiguedad
-            QUOTES.append(t)
-    
+
+def clean_text(value: Any) -> str:
+    return str(value or "").replace("\r", " ").replace("\n", " ").strip()
+
+
+def normalize_key(value: Any) -> str:
+    value = clean_text(value).casefold()
+    return "".join(ch for ch in unicodedata.normalize("NFD", value) if unicodedata.category(ch) != "Mn")
+
+
+def normalize_word(value: Any) -> str:
+    key = normalize_key(value)
+    return "" if key in WORD_STOP_KEYS else key
+
+
+def extract_question_label(header: str, fallback: str) -> str:
+    match = re.search(r"\[(.*?)\]", clean_text(header))
+    return clean_text(match.group(1)) if match else fallback
+
+
+def build_questions(headers: list[str]) -> dict[str, dict[str, str]]:
     return {
-        "KPIS": KPIS, "ASPECTOS": ASPECTOS, "AFIRMACIONES": AFIRMACIONES, "RETOS": RETOS,
-        "MATRIZ": MATRIZ, "IDENTIDAD": IDENTIDAD, "DIFERENCIAS": DIFERENCIAS,
-        "INICIATIVAS": INICIATIVAS, "APORTE": APORTE, "DEMO": DEMO,
-        "RESP_CAMBIOS": RESP_CAMBIOS, "TOP_WORDS": TOP_WORDS, "QUOTES": QUOTES, "N": N
+        "aspectos": {f"aspecto_{i + 1:02d}": extract_question_label(headers[6 + i] if 6 + i < len(headers) else "", f"Aspecto {i + 1}") for i in range(12)},
+        "afirmaciones": {f"afirmacion_{i + 1:02d}": extract_question_label(headers[20 + i] if 20 + i < len(headers) else "", f"Afirmación {i + 1}") for i in range(7)},
+        "retos": {f"reto_{i + 1:02d}": extract_question_label(headers[30 + i] if 30 + i < len(headers) else "", f"Reto {i + 1}") for i in range(7)},
+        "matriz": {f"area_{i + 1:02d}": extract_question_label(headers[38 + i] if 38 + i < len(headers) else "", f"Área {i + 1}") for i in range(13)},
     }
 
-def update_html(metrics, html_path):
-    """Update HTML file with new metrics."""
-    with open(html_path, "r", encoding="utf-8") as f:
-        html = f.read()
-    
-    N = metrics["N"]
-    
-    # Generate JS data block
-    def js_var(name, value):
-        return f"var {name}={json.dumps(value, ensure_ascii=False, separators=(',',':'))};"
-    
-    js_vars = [js_var(k, metrics[k]) for k in ["KPIS","ASPECTOS","AFIRMACIONES","RETOS","MATRIZ","IDENTIDAD","DIFERENCIAS","INICIATIVAS","APORTE","DEMO","RESP_CAMBIOS","TOP_WORDS","QUOTES"]]
-    js_data_block = "\n".join(js_vars)
-    
-    # Find and replace data section
-    start_marker = "// Datos cargados"
-    end_marker = "// Navegacion por pestanas"
-    
-    # Try with accents first, then without
-    start_idx = html.find("// Datos cargados")
-    end_idx = html.find("// Navegaci")
-    
-    if start_idx == -1:
-        # Try finding by script content
-        start_idx = html.find("var KPIS=")
-        if start_idx > 0:
-            # Go back to find the comment
-            comment_idx = html.rfind("//", 0, start_idx)
-            if comment_idx > 0 and "Datos" in html[comment_idx:start_idx]:
-                start_idx = comment_idx
-    
-    if end_idx == -1:
-        end_idx = html.find("function switchTab")
-        if end_idx > 0:
-            # Go back to find the comment
-            comment_idx = html.rfind("//", 0, end_idx)
-            if comment_idx > 0:
-                end_idx = comment_idx
-    
-    if start_idx > 0 and end_idx > start_idx:
-        new_section = f"// Datos cargados - {N} familias\n{js_data_block}\n\n    // Navegacion por pestanas"
-        html = html[:start_idx] + new_section + html[end_idx + len("// Navegacion por pestanas"):]
-        
-        # Update family count in header
-        html = re.sub(r"(\d+) familias", f"{N} familias", html)
-        
-        with open(html_path, "w", encoding="utf-8") as f:
-            f.write(html)
-        return True, N
+
+def redact_free_text(value: Any) -> str:
+    text = clean_text(value)
+    text = re.sub(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}", "[correo eliminado]", text)
+    text = re.sub(r"https?://\S+|www\.\S+", "[enlace eliminado]", text)
+    # Remove phone-like numbers to reduce accidental personal data exposure.
+    text = re.sub(r"(?<!\w)(?:\+?\d[\d\s().-]{7,}\d)(?!\w)", "[teléfono eliminado]", text)
+    # Names are not PII-safe by themselves; redact only explicit person-title
+    # contexts so ordinary capitalized concepts remain readable.
+    name_token = r"[A-ZÁÉÍÓÚÜÑ][\wÁÉÍÓÚÜáéíóúüñ]+"
+    person_name = rf"{name_token}(?:\s+{name_token}){{0,3}}"
+    text = re.sub(rf"\b(Sr|Sra|Srta|Dr|Dra)\.?\s+{person_name}", r"\1. [persona eliminada]", text)
+    text = re.sub(
+        rf"\b(profesor|profesora|maestro|maestra|director|directora|coordinador|coordinadora)\s+{person_name}",
+        r"\1 [persona eliminada]",
+        text,
+    )
+    return text
+
+
+def match_options(value: str, options: list[str]) -> list[str]:
+    normalized = normalize_key(value)
+    return [option for option in options if normalize_key(option) in normalized]
+
+
+def parse_courses(value: str) -> list[str]:
+    parts = [normalize_key(part) for part in clean_text(value).split(",")]
+    return [course for course in COURSE_ORDER if normalize_key(course) in parts]
+
+
+def section_for_course(course: str) -> str | None:
+    return COURSE_TO_SECTION.get(normalize_key(course))
+
+
+def pct(count: int, total: int) -> float:
+    return round((count / total) * 100, 1) if total else 0.0
+
+
+def modal_label(counter: Counter[str], options: list[str]) -> str | None:
+    if not counter:
+        return None
+    max_count = max(counter.values())
+    winners = [label for label in options if counter.get(label, 0) == max_count]
+    return winners[0] if len(winners) == 1 else "Empate"
+
+
+def _to_rank(value: str) -> int | None:
+    try:
+        rank = int(clean_text(value))
+        return rank if 1 <= rank <= 7 else None
+    except (TypeError, ValueError):
+        return None
+
+
+def build_response_record(headers: list[str], row: list[str], index: int) -> dict[str, Any]:
+    get = lambda idx: clean_text(row[idx]) if idx < len(row) else ""
+    courses = parse_courses(get(3))
+    sections = list(dict.fromkeys(section_for_course(course) for course in courses if section_for_course(course)))
+    aspect_keys = [f"aspecto_{i + 1:02d}" for i in range(12)]
+    afirmacion_keys = [f"afirmacion_{i + 1:02d}" for i in range(7)]
+    reto_keys = [f"reto_{i + 1:02d}" for i in range(7)]
+    matriz_keys = [f"area_{i + 1:02d}" for i in range(13)]
+    raw_words = re.findall(r"[\wÁÉÍÓÚÜÑáéíóúüñ]+", get(19))
+    return {
+        "id": f"response-{index + 1}", "hijos": get(2), "cursos": courses, "cursos_texto": get(3),
+        "secciones": sections, "antiguedad": get(4), "participacion": get(5),
+        "aspectos": {key: get(6 + i) for i, key in enumerate(aspect_keys)},
+        "afirmaciones": {key: get(20 + i) for i, key in enumerate(afirmacion_keys)},
+        "retos": {key: _to_rank(get(30 + i)) for i, key in enumerate(reto_keys)},
+        "matriz": {key: get(38 + i) for i, key in enumerate(matriz_keys)},
+        "identidad": match_options(get(18), IDENTITY_OPTIONS),
+        "diferencias": match_options(get(28), DIFFERENCE_OPTIONS),
+        "respuesta_cambio": get(29), "iniciativas": match_options(get(52), INITIATIVE_OPTIONS),
+        "aporte": match_options(get(53), CONTRIBUTION_OPTIONS),
+        "quotes": {key: text for key, text in {
+            "no_perder": redact_free_text(get(27)), "cambiar": redact_free_text(get(51)),
+            "ensenar": redact_free_text(get(54)), "recomendar": redact_free_text(get(55)),
+        }.items() if text},
+        "word_tokens": [normalized for normalized in (normalize_word(token) for token in raw_words) if len(normalized) > 3],
+    }
+
+
+def build_snapshot(data: list[list[str]]) -> dict[str, Any]:
+    if not data or len(data[0]) < EXPECTED_COLUMNS:
+        raise ValueError(f"Sheet inválido: se esperaban {EXPECTED_COLUMNS} columnas")
+    headers = data[0]
+    responses = [build_response_record(headers, row, index) for index, row in enumerate(data[1:]) if any(clean_text(value) for value in row)]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "questions": build_questions(headers),
+        "responses": responses,
+    }
+
+
+def _count_option(records: list[dict[str, Any]], getter: Any, options: list[str]) -> list[dict[str, Any]]:
+    valid = [record for record in records if getter(record)]
+    total = len(valid)
+    result = [{"label": option, "opcion": option, "count": sum(1 for record in valid if getter(record) == option), "pct": 0.0} for option in options]
+    for item in result:
+        item["pct"] = pct(item["count"], total)
+    return [item for item in result if item["count"] > 0]
+
+
+def _count_multi(records: list[dict[str, Any]], getter: Any, options: list[str]) -> list[dict[str, Any]]:
+    valid = [record for record in records if getter(record)]
+    total = len(valid)
+    result = [{"opcion": option, "count": sum(1 for record in valid if option in getter(record)), "pct": 0.0} for option in options]
+    for item in result:
+        item["pct"] = pct(item["count"], total)
+    return [item for item in result if item["count"] > 0]
+
+
+def compute_metrics(payload: list[dict[str, Any]] | dict[str, Any]) -> dict[str, Any]:
+    if isinstance(payload, dict):
+        records = list(payload.get("responses", []))
+        questions = payload.get("questions", {}) if isinstance(payload.get("questions", {}), dict) else {}
     else:
-        return False, f"Markers not found: start={start_idx}, end={end_idx}"
+        records = list(payload)
+        first = records[0] if records else {}
+        questions = first.get("questions", {}) if isinstance(first, dict) else {}
+    N = len(records)
+    first = records[0] if records else None
+    aspect_keys = list((first or {}).get("aspectos", {}).keys()) or [f"aspecto_{i:02d}" for i in range(1, 13)]
+    affirmation_keys = list((first or {}).get("afirmaciones", {}).keys()) or [f"afirmacion_{i:02d}" for i in range(1, 8)]
+    reto_keys = list((first or {}).get("retos", {}).keys()) or [f"reto_{i:02d}" for i in range(1, 8)]
+    matriz_keys = list((first or {}).get("matriz", {}).keys()) or [f"area_{i:02d}" for i in range(1, 14)]
+    question_labels = questions.get("aspectos", {})
+    affirmation_labels = questions.get("afirmaciones", {})
+    reto_labels = questions.get("retos", {})
+    matrix_labels = questions.get("matriz", {})
+    aspectos = []
+    for key in aspect_keys:
+        values = [record["aspectos"].get(key, "") for record in records]
+        valid = [value for value in values if value]
+        total = len(valid)
+        item = {"aspecto": question_labels.get(key, key), "key": key}
+        for option in SCALE_OPTIONS:
+            count = valid.count(option)
+            item[option] = {"count": count, "pct": pct(count, total)}
+        item["satisfaccion_positiva_pct"] = round(item["Excelente"]["pct"] + item["Bueno"]["pct"], 1)
+        aspectos.append(item)
+    afirmaciones = []
+    for key in affirmation_keys:
+        values = [record["afirmaciones"].get(key, "") for record in records]
+        valid = [value for value in values if value]
+        total = len(valid)
+        item = {"afirmacion": affirmation_labels.get(key, key), "key": key}
+        for option in AGREEMENT_OPTIONS:
+            count = valid.count(option)
+            item[option] = {"count": count, "pct": pct(count, total)}
+        item["acuerdo_total_pct"] = round(item["Totalmente de acuerdo"]["pct"] + item["De acuerdo"]["pct"], 1)
+        afirmaciones.append(item)
+    retos = []
+    for key in reto_keys:
+        values = [record["retos"].get(key) for record in records]
+        valid = [value for value in values if isinstance(value, int)]
+        retos.append({"reto": reto_labels.get(key, key), "key": key, "media_urgencia": round(sum(valid) / len(valid), 2) if valid else 0, "top2_pct": pct(sum(1 for value in valid if value <= 2), len(valid)), "valid": len(valid)})
+    matrix = []
+    matrix_groups = {action: [] for action in [*MATRIX_ACTIONS, "Sin respuesta", "Empate"]}
+    matrix_by_area: dict[str, dict[str, Any]] = {}
+    for key in matriz_keys:
+        label = matrix_labels.get(key, key)
+        area_key = normalize_key(label)
+        values = [record["matriz"].get(key, "") for record in records]
+        valid = [value for value in values if value in MATRIX_ACTIONS]
+        counter = Counter(valid)
+        if area_key not in matrix_by_area:
+            matrix_by_area[area_key] = {"area": label, "key": key, "counts": {option: 0 for option in MATRIX_ACTIONS}}
+        entry = matrix_by_area[area_key]
+        for option in MATRIX_ACTIONS:
+            entry["counts"][option] += counter.get(option, 0)
+    for entry in matrix_by_area.values():
+        counter = Counter({option: count for option, count in entry["counts"].items() if count})
+        action = modal_label(counter, MATRIX_ACTIONS) or "Sin respuesta"
+        total = sum(entry["counts"].values())
+        entry["action"] = action
+        entry["pcts"] = {option: pct(entry["counts"][option], total) for option in MATRIX_ACTIONS}
+        entry.update({option: {"count": entry["counts"][option], "pct": entry["pcts"][option]} for option in MATRIX_ACTIONS})
+        matrix.append(entry)
+        matrix_groups.setdefault(action, []).append(entry)
+    for group in matrix_groups.values():
+        group.sort(key=lambda item: item["pcts"].get(item["action"] if item["action"] in MATRIX_ACTIONS else "", 0), reverse=True)
+    identity = _count_multi(records, lambda record: record["identidad"], IDENTITY_OPTIONS)
+    differences = _count_multi(records, lambda record: record["diferencias"], DIFFERENCE_OPTIONS)
+    initiatives = _count_multi(records, lambda record: record["iniciativas"], INITIATIVE_OPTIONS)
+    contribution = _count_multi(records, lambda record: record["aporte"], CONTRIBUTION_OPTIONS)
+    change = _count_option(records, lambda record: record["respuesta_cambio"], CHANGE_RESPONSE_ORDER)
+    participation = _count_option(records, lambda record: record["participacion"], PARTICIPATION_ORDER)
+    antiguedad = _count_option(records, lambda record: record["antiguedad"], ANTIGUEDAD_ORDER)
+    words = Counter()
+    for record in records:
+        words.update(record.get("word_tokens", []))
+    top_words = [{"palabra": WORD_PRESENTATION.get(word, word[:1].upper() + word[1:]), "frecuencia": count} for word, count in words.most_common(20)]
+    demo = {"total_respuestas": N, "hijos": _count_option(records, lambda record: record["hijos"], ["1", "2", "3", "4", "5"]), "antiguedad": antiguedad, "participacion": participation, "secciones": [{"label": section, "count": sum(1 for record in records if section in record["secciones"]), "pct": pct(sum(1 for record in records if section in record["secciones"]), N)} for section in ["Infantil", "Prejuvenil", "Juvenil"]]}
+    urgent = sorted([item for item in retos if item["valid"]], key=lambda item: item["media_urgencia"])
+    kpis = {
+        "bienestar_hijos_pct": afirmaciones[5]["acuerdo_total_pct"] if len(afirmaciones) >= 6 else 0.0,
+        "comunidad_leonista_pct": afirmaciones[6]["acuerdo_total_pct"] if len(afirmaciones) >= 7 else 0.0,
+        "coincidencia_valores_pct": afirmaciones[1]["acuerdo_total_pct"] if len(afirmaciones) >= 2 else 0.0,
+        "identidad_diferenciada_pct": afirmaciones[0]["acuerdo_total_pct"] if afirmaciones else 0.0,
+        "participacion_activa_pct": pct(sum(item["count"] for item in participation if item["label"] in PARTICIPATION_ORDER[:2]), len(records)),
+        "reto_urgente_1": urgent[0]["reto"] if urgent else "Sin respuesta", "reto_urgente_1_pct": urgent[0]["top2_pct"] if urgent else 0.0,
+        "reto_urgente_2": urgent[1]["reto"] if len(urgent) >= 2 else "Sin respuesta", "reto_urgente_2_pct": urgent[1]["top2_pct"] if len(urgent) >= 2 else 0.0,
+        "iniciativa_top_1": initiatives[0]["opcion"] if initiatives else "Sin respuesta", "iniciativa_top_1_pct": initiatives[0]["pct"] if initiatives else 0.0,
+        "disposicion_aporte_pct": pct(sum(1 for record in records if any(option != "Por ahora no me es posible participar" for option in record["aporte"])), len(records)),
+    }
+    quotes = []
+    for record in records:
+        if any(record["quotes"].values()):
+            quote = dict(record["quotes"])
+            quote.update({"id": record["id"], "curso": record["cursos_texto"], "nivel": ", ".join(record["secciones"]), "antiguedad": record["antiguedad"]})
+            quotes.append(quote)
+    return {"KPIS": kpis, "ASPECTOS": aspectos, "AFIRMACIONES": afirmaciones, "RETOS": retos, "MATRIZ": matrix, "matrix_groups": matrix_groups, "IDENTIDAD": identity, "DIFERENCIAS": differences, "INICIATIVAS": initiatives, "APORTE": contribution, "DEMO": demo, "RESP_CAMBIOS": change, "TOP_WORDS": top_words, "QUOTES": quotes, "N": N}
+
+
+def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", dir=str(path.parent), text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+            handle.write("\n")
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, path)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+
+
+def inject_snapshot(html_text: str, snapshot: dict[str, Any]) -> str:
+    # Escape only the script-closing sequence; JSON strings remain valid JavaScript
+    # and free-text content cannot terminate the surrounding script element.
+    encoded = json.dumps(snapshot, ensure_ascii=False, separators=(",", ":"), sort_keys=True).replace("</", "<\\/")
+    block = f"{DATA_START}\nvar CBJML_SNAPSHOT={encoded};\n{DATA_END}"
+    if DATA_RE.search(html_text):
+        return DATA_RE.sub(lambda _: block, html_text, count=1)
+    marker = "  <script id=\"cbjml-data\">\n"
+    if marker not in html_text:
+        raise ValueError("Plantilla HTML sin bloque de datos estable")
+    return html_text.replace(marker, f"{marker}{block}\n", 1)
+
+
+def validate_rendered_html(rendered: str) -> None:
+    required_ids = ["sampleTotal", "filterPanel", "filterSeccion", "filterAntiguedad", "filterCurso", "matrixGroups", "vozQuestionBar", "vozQuestionText", "wordCloudContainer", "quotesList"]
+    missing = [element_id for element_id in required_ids if rendered.count(f'id="{element_id}"') != 1]
+    if missing:
+        raise ValueError(f"HTML inválido: IDs ausentes o duplicados: {missing}")
+    if rendered.count(DATA_START) != 1 or rendered.count(DATA_END) != 1:
+        raise ValueError("HTML inválido: marcadores de datos no son únicos")
+
+
+def refresh_access_token() -> str:
+    payload = urllib.parse.urlencode({"client_id": os.environ.get("GOOGLE_CLIENT_ID", ""), "client_secret": os.environ.get("GOOGLE_CLIENT_SECRET", ""), "refresh_token": os.environ.get("GOOGLE_REFRESH_TOKEN", ""), "grant_type": "refresh_token"}).encode()
+    request = urllib.request.Request("https://oauth2.googleapis.com/token", data=payload)
+    with urllib.request.urlopen(request, timeout=15) as response:
+        return json.loads(response.read())["access_token"]
+
+
+def fetch_sheet() -> list[list[str]]:
+    token = refresh_access_token()
+    quoted_range = urllib.parse.quote(SHEET_RANGE, safe="")
+    url = f"https://sheets.googleapis.com/v4/spreadsheets/{SHEET_ID}/values/{quoted_range}?majorDimension=ROWS&valueRenderOption=FORMATTED_VALUE"
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.loads(response.read()).get("values", [])
+
+
+def run_pipeline() -> tuple[int, str]:
+    data = fetch_sheet()
+    snapshot = build_snapshot(data)
+    metrics = compute_metrics(snapshot)
+    if metrics["N"] != len(snapshot["responses"]):
+        raise ValueError("El modelo agregado no coincide con el snapshot")
+    rendered = inject_snapshot(HTML_PATH.read_text(encoding="utf-8"), snapshot)
+    validate_rendered_html(rendered)
+    write_json_atomic(JSON_PATH, snapshot)
+    fd, temp_name = tempfile.mkstemp(prefix=f".{HTML_PATH.name}.", dir=str(HTML_PATH.parent), text=True)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(rendered)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temp_name, HTML_PATH)
+    finally:
+        if os.path.exists(temp_name):
+            os.unlink(temp_name)
+    return len(snapshot["responses"]), "OK"
+
 
 if __name__ == "__main__":
-    print("Fetching data from Google Sheets...")
-    data = fetch_sheet()
-    print(f"Got {len(data)} rows (including header)")
-    
-    print("Computing metrics...")
-    metrics = compute_metrics(data)
-    print(f"N={metrics['N']} families")
-    
-    print("Updating dashboard HTML...")
-    html_path = os.path.join(DASHBOARD_DIR, "Dashboard_CBJML.html")
-    success, result = update_html(metrics, html_path)
-    
-    if success:
-        print(f"Dashboard updated with {result} families")
-        print("OK")
-    else:
-        print(f"Error: {result}")
+    try:
+        count, status = run_pipeline()
+        print(f"N={count} families")
+        print(status)
+    except Exception as error:
+        print(f"ERROR: {error}", file=sys.stderr)
         sys.exit(1)

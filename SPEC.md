@@ -1,89 +1,88 @@
-# SPEC — Dashboard Encuesta CBJML
+# SPEC — Dashboard CBJML
 
 ## Objetivo
 
-Construir y mantener un dashboard interactivo que visualice los resultados de la encuesta de familias del Colegio José Max León (CBJML), con datos sincronizados desde Google Sheets y deploy continuo en el VPS Contabo.
+Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max León, sincronizado desde Google Sheets en modo de solo lectura, con filtros que recalculan todos los módulos y una UI persistente/idempotente frente al ETL.
 
 ## Requirements
 
-### R1 — Ingesta de datos
-- Conectar a Google Sheets `1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY` vía OAuth2 (rclone refresh_token).
-- Leer hoja `Respuestas de formulario 1` (todas las filas y columnas).
-- Validar estructura: ~56 columnas, 1 fila = 1 respuesta.
+### R1 — Ingesta
+- Leer Google Sheets `1D1iZsRERzoFedD01_uYTy7-72vLssuEGnOmHSlPVNTY`, hoja `Respuestas de formulario 1`.
+- No escribir, editar ni reordenar la hoja.
+- Validar al menos 56 columnas y tratar cada fila no vacía como una familia.
+- Ejecutar el ETL al arrancar y en `/api/update`.
 
-### R2 — Procesamiento estadístico
-- **Aspectos Formativos (12):** Calcular % Excelente + Bueno (satisfacción favorable). Clasificar semáforo.
-- **Afirmaciones (7):** Calcular % Totalmente de acuerdo + De acuerdo.
-- **Retos (7):** Calcular media de ranking (1-7) y % en puestos 1-2.
-- **Matriz de Acción (13):** Determinar categoría predominante (Mantener/Mejorar/Transformar/No prioritario).
-- **Multi-select:** Parsear con lista de opciones canónicas (no split por comas).
-- **Testimonios:** Extraer textos de cols 27, 51, 54, 55 con metadata (curso, antigüedad).
+### R2 — Modelo anonimizado
+- Producir `dashboard_data.json` y `CBJML_SNAPSHOT` con respuestas anonimizadas; no versionar esos artefactos.
+- Excluir timestamp, correo y columnas personales.
+- Redactar correo, URL, teléfono y nombres explícitos en contextos de persona dentro de textos libres.
+- Normalizar Unicode antes de mapear cursos con tildes.
+- Parsear multiselección contra opciones canónicas, sin dividir internamente por comas.
 
-### R3 — Dashboard web
-- SPA HTML con Chart.js + Tailwind CSS.
-- 5 módulos navegables por tabs.
-- Datos inlined como JS constants (`var KPIS=...`, `var ASPECTOS=...`).
-- Buscador de testimonios con filtro por categoría y texto libre.
-- Nube de palabras basada en frecuencia de tokens en respuestas abiertas.
+### R3 — Métricas
+- Aspectos: Excelente + Bueno, denominador de respuestas válidas.
+- Afirmaciones: Totalmente de acuerdo + De acuerdo.
+- Retos: media de urgencia (1 más urgente) y % top 1–2.
+- Matriz: cada área una sola vez, asignada por respuesta predominante; empate explícito.
+- Nube: normalizar variantes y excluir términos sin contexto como `cada` y `estudiantes`.
+- Citas: texto público anonimizado, con curso, sección y antigüedad.
 
-### R4 — Deploy
-- Docker image `cbjml-dashboard:latest` basada en `python:3.12-slim`.
-- Servidor estático con `Cache-Control: no-store` en HTML.
-- Servicio Swarm en red `easypanel`.
-- Traefik file provider con HTTPS Let's Encrypt.
+### R4 — UI
+- Mantener exactamente cinco pestañas con los títulos executive definidos en el encargo.
+- Grid responsive de cinco botones sin overflow horizontal.
+- Panel de filtros ocultable: total colegio, sección, antigüedad y curso.
+- Persistir filtros, collapsed state y pestaña en `localStorage`.
+- Recalcular KPIs, gráficos, tablas, matriz, nube y citas al cambiar cualquier filtro.
+- Mostrar una sola vez la pregunta de Voz Directa en barra sticky.
+- Logo oficial CBJML con fallback textual.
 
-### R5 — Privacidad
-- No incluir emails ni datos personales en el dashboard público.
-- `.gitignore` excluye archivos con datos crudos (`.xlsx`, `.csv`).
-- No commitear secrets, tokens ni `.env`.
+### R5 — Ship y privacidad
+- Build Docker desde `Dockerfile` mínimo.
+- Deploy con `docker service update --image ... --force`.
+- Verificar URL pública, healthcheck, contenido/versionado y navegador.
+- No versionar secretos ni datos crudos.
 
 ## Acceptance Criteria
 
-- AC1: Dashboard accesible en https://cbjml-dashboard.ywzal8.easypanel.host/ con HTTP 200.
-- AC2: Los 5 tabs funcionan al hacer click (resumen, calidad, matriz, retos, comunidad).
-- AC3: Todos los gráficos se renderizan (Chart.js) con datos actualizados.
-- AC4: El buscador de testimonios filtra correctamente.
-- AC5: El conteo de familias refleja el número real de filas en el sheet.
-- AC6: No hay datos personales (emails) visibles en el dashboard.
-- AC7: `dashboard_data.json` se genera correctamente desde el sheet en vivo.
+- AC1: `GET /` responde el dashboard y `/api/health` devuelve estado con conteo actual.
+- AC2: ETL idempotente: dos ejecuciones del mismo snapshot producen el mismo HTML.
+- AC3: Los cinco tabs cambian de estado correctamente.
+- AC4: A 375 px y 320 px, `scrollWidth <= innerWidth`.
+- AC5: Cambiar sección/curso modifica el modelo renderizado, no solo el contador.
+- AC6: La Matriz contiene 13 áreas únicas y los empates no se reparten.
+- AC7: La nube no contiene `cada`, `estudiantes` ni duplicados por tildes.
+- AC8: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`.
+- AC9: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
+- AC10: Pruebas Python y `node --check` terminan correctamente antes del deploy.
 
 ## Constraints
 
-- Sin backend propio — todo es estático, datos se pre-calculan en build time.
-- Actualización manual de datos (no hay webhook de Google Forms).
-- VPS compartido con otros servicios (no monopolizar recursos).
+- Google Sheets es solo consulta.
+- El HTML debe ser una plantilla estable; no se parcheará con scripts de postprocesado.
+- snapshot v2 debe ser suficiente para que el navegador calcule todos los filtros; por eso se entrega por respuesta anonimizada.
+- No guardar valores de OAuth, rclone o `.env` en Git, logs o respuestas.
+- No servir el snapshot (`dashboard_data.json`) ni el código fuente desde HTTP; deben quedar fuera de la allowlist pública.
+- El deploy es irreversible en producción; se ejecuta solo después de pruebas y revisión de diff.
 
 ## DoD
 
-- [ ] Datos descargados y procesados desde Google Sheets
-- [ ] `dashboard_data.json` generado con todas las métricas
-- [ ] HTML actualizado con datos inlined (JS válido, sin errores de sintaxis)
-- [ ] Docker build exitoso
-- [ ] Deploy Swarm converged (1/1)
-- [ ] Verificación curl al URL público (HTTP 200 + contenido correcto)
-- [ ] Verificación browser (tabs funcionan, gráficos renderizan)
+- [x] Modelo ETL con snapshot v2 e idempotencia.
+- [x] Runtime externo conectado al snapshot.
+- [x] Filtros, persistencia, Matriz, nube, logo y responsive implementados.
+- [x] Pruebas sintéticas y QA local en navegador.
+- [x] Build Docker y deploy Swarm.
+- [x] Verificación post-deploy en URL pública.
+- [ ] Commit y push revisados.
 
-## ETL Pipeline
+## Pipeline
 
+```text
+refresh_access_token()
+→ sheets.values.get(majorDimension=ROWS, valueRenderOption=FORMATTED_VALUE)
+→ build_snapshot()
+→ compute_metrics() (validación y salida agregada)
+→ inject_snapshot() con reemplazo de bloque delimitado
+→ validate_rendered_html()
+→ write_json_atomic() + os.replace()
+→ servidor sirve HTML con no-store
 ```
-1. OAuth2 token refresh (rclone.conf)
-2. GET /v4/spreadsheets/{id}/values/{sheet} → rows[][]
-3. Parsear por columnas → estructuras tipadas
-4. Calcular métricas → dashboard_data.json
-5. Inyectar en Dashboard_CBJML.html (regex replace sección JS)
-6. docker build → docker service update
-```
-
-## Opciones canónicas multi-select
-
-### Identidad (col 18, máx 5)
-Formación en valores, Excelencia académica, Proyección internacional, Programa SER/CARE, Cercanía y acompañamiento, Actividades artísticas/culturales/deportivas, Relación con familias, Escuela de argumentación, Competencias tecnológicas, Sentido de comunidad, Programa de emprendimiento, Tradiciones y celebraciones
-
-### Diferencias generacionales (col 28, máx 5)
-Relación con tecnología y redes sociales, Forma de aprender, Necesidades socioemocionales, Atención y concentración, Relación con autoridad y profesores, Expectativas frente al futuro, Relación con la información, Relación con compañeros
-
-### Iniciativas (col 52, máx 5)
-Educación financiera, Liderazgo/debate/oratoria, IA responsable/programación/robótica, Salud mental y bienestar, Emprendimiento con impacto social, Arte y deporte alto rendimiento, Orientación vocacional temprana, Voluntariado y servicio comunitario, Proyectos interdisciplinarios, Esquemas reconocimiento monetario, Mentoría profesional, Red de exalumnos
-
-### Colaboración (col 53)
-Charlas/talleres estudiantes, Talleres padres, Mentoría profesional, Voluntariado eventos, Respondiendo consultas, Por ahora no me es posible participar

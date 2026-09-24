@@ -3,10 +3,15 @@
 *.env
 data_sensibles/
 *.xlsx
+*.csv
+*.json
+!package.json
+dashboard_data.json
 respuestas_formulario.csv
 analisis.json
 datos_actualizados.json
 data_*.js
+__qa_*.html
 __pycache__/
 *.pyc
 node_modules/
