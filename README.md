@@ -62,6 +62,7 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 - `py_compile`: correcto.
 - `node --check dashboard_runtime.js`: correcto.
 - `python3 -m unittest -v test_dashboard_metrics.py`: 18 pruebas OK.
-- QA local con 149 respuestas: filtros cambian KPIs, tablas, Matriz, nube y citas; no hay áreas duplicadas.
-- QA responsive: sin overflow horizontal a 375 px ni 320 px; una sola barra sticky de pregunta; logo carga con fallback.
-- QA de producción: `213` familias, snapshot v2, cinco pestañas, filtros persistentes, `/api/update` exitoso y assets runtime bloqueados (`404`).
+- QA local y producción: `213` familias; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
+- QA responsive: sin overflow horizontal a 375 px ni 320 px; logo con fallback.
+- Allowlist pública verificada: snapshot, ETL, servidor, `.env` y `data_*.js` devuelven `404`.
+- Commit `6f18ca6` publicado en `origin/main`.

@@ -8,7 +8,7 @@
 | TASK-004 — Matriz sin duplicados | Crítica | Completada | 13 áreas únicas; predominio y empates explícitos |
 | TASK-005 — Logo CBJML | Media | Completada | Imagen oficial cargada; fallback oculto mientras funciona |
 | QA-001 — Browser, privacidad y accesibilidad | Crítica | Completada | QA local + producción: `213` familias, filtros/persistencia, responsive y pregunta sticky |
-| SHIP-001 — Documentación, diff, commit y push | Alta | En curso | Revisión de privacidad y secretos; faltan commits/push |
+| SHIP-001 — Documentación, diff, commit y push | Alta | Completada | Commit `6f18ca6` y `origin/main` verificados; sin datos crudos en HEAD |
 | DEPLOY-001 — Rebuild y actualización del servicio | Crítica | Completada | `docker build --no-cache`, Swarm `1/1`, health `200`, ETL en vivo |
 
 ## Orden de cierre
