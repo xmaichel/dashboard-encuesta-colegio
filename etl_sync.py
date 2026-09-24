@@ -64,6 +64,12 @@ CONTRIBUTION_OPTIONS = [
     "Talleres o espacios para padres", "Charlas o talleres para estudiantes",
     "Mentoría profesional o de emprendimiento", "Por ahora no me es posible participar",
 ]
+VOZ_QUESTION_FALLBACKS = {
+    "no_perder": (27, "¿Qué sería especialmente importante NO perder, aunque el Colegio atraviese procesos de cambio?"),
+    "cambiar": (51, "Si pudiera cambiar o mejorar UNA sola cosa del Colegio, ¿Cuál sería y cómo lo haría?"),
+    "ensenar": (54, "Complete la frase: «Quisiera que cuando mi hijo(a) termine el Colegio pudiera decir que el Colegio le enseñó principalmente a..."),
+    "recomendar": (55, "Si recomendara el Colegio, ¿qué sería lo principal que le diría a esa familia que encontrará aquí?"),
+}
 COURSE_ORDER = ["Preescolar", "Primero", "Segundo", "Tercero", "Cuarto", "Quinto", "Sexto", "Séptimo", "Octavo", "Noveno", "Décimo", "Undécimo"]
 COURSE_TO_SECTION = {
     "preescolar": "Infantil", "primero": "Infantil", "segundo": "Infantil", "tercero": "Infantil",
@@ -107,12 +113,24 @@ def extract_question_label(header: str, fallback: str) -> str:
     return clean_text(match.group(1)) if match else fallback
 
 
+def build_voice_questions(headers: list[str]) -> dict[str, str]:
+    questions: dict[str, str] = {}
+    for key, (index, fallback) in VOZ_QUESTION_FALLBACKS.items():
+        raw = clean_text(headers[index]) if index < len(headers) else ""
+        bracketed = extract_question_label(raw, "")
+        # The first question has a product-approved wording; the other three
+        # retain the current Sheet wording so the selector and data stay aligned.
+        questions[key] = fallback if key == "cambiar" else bracketed or raw or fallback
+    return questions
+
+
 def build_questions(headers: list[str]) -> dict[str, dict[str, str]]:
     return {
         "aspectos": {f"aspecto_{i + 1:02d}": extract_question_label(headers[6 + i] if 6 + i < len(headers) else "", f"Aspecto {i + 1}") for i in range(12)},
         "afirmaciones": {f"afirmacion_{i + 1:02d}": extract_question_label(headers[20 + i] if 20 + i < len(headers) else "", f"Afirmación {i + 1}") for i in range(7)},
         "retos": {f"reto_{i + 1:02d}": extract_question_label(headers[30 + i] if 30 + i < len(headers) else "", f"Reto {i + 1}") for i in range(7)},
         "matriz": {f"area_{i + 1:02d}": extract_question_label(headers[38 + i] if 38 + i < len(headers) else "", f"Área {i + 1}") for i in range(13)},
+        "voz": build_voice_questions(headers),
     }
 
 

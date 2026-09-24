@@ -34,6 +34,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - Persistir filtros, collapsed state y pestaña en `localStorage`.
 - Recalcular KPIs, gráficos, tablas, matriz, nube y citas al cambiar cualquier filtro.
 - Mostrar una sola vez la pregunta de Voz Directa en barra sticky.
+- El selector de las cuatro preguntas de Voz Directa cambia simultáneamente el texto de la barra y las citas; la barra conserva su comportamiento sticky.
 - Logo oficial CBJML con fallback textual.
 
 ### R5 — Ship y privacidad
@@ -51,7 +52,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC5: Cambiar sección/curso modifica el modelo renderizado, no solo el contador.
 - AC6: La Matriz contiene 13 áreas únicas y los empates no se reparten.
 - AC7: La nube no contiene `cada`, `estudiantes` ni duplicados por tildes.
-- AC8: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`.
+- AC8: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza ambos el texto y las citas.
 - AC9: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
 - AC10: Pruebas Python y `node --check` terminan correctamente antes del deploy.
 
@@ -73,6 +74,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - [x] Build Docker y deploy Swarm.
 - [x] Verificación post-deploy en URL pública.
 - [x] Commit y push revisados (`6f18ca6` + `b89420b`).
+- [x] Selector de las cuatro preguntas de Voz Directa dinámico y verificado en producción.
 
 ## Pipeline
 

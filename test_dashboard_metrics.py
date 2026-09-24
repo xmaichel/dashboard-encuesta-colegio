@@ -101,6 +101,17 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot["responses"][0]["cursos"], ["Preescolar", "Primero", "Segundo"])
         self.assertEqual(snapshot["responses"][0]["secciones"], ["Infantil"])
 
+    def test_snapshot_exposes_four_voice_questions_without_raw_headers(self):
+        headers = self_headers()
+        headers[27] = "Pregunta de no perder desde la hoja"
+        headers[51] = "Pregunta de cambio desde la hoja"
+        headers[54] = "Pregunta de enseñanza desde la hoja"
+        headers[55] = "Pregunta de recomendación desde la hoja"
+        snapshot = etl.build_snapshot([headers, make_row()])
+        self.assertEqual(set(snapshot["questions"]["voz"]), {"cambiar", "no_perder", "ensenar", "recomendar"})
+        self.assertEqual(snapshot["questions"]["voz"]["no_perder"], "Pregunta de no perder desde la hoja")
+        self.assertNotIn("headers", snapshot)
+
     def test_word_tokens_are_normalized_and_stopwords_removed(self):
         record = make_snapshot()["responses"][0]
         self.assertIn("pensamiento", record["word_tokens"])

@@ -7,9 +7,13 @@
 | TASK-003 — Filtros reales y persistentes | Crítica | Completada | Sección/curso recalculan KPIs, tablas, gráficos, matriz, nube y citas; `localStorage` |
 | TASK-004 — Matriz sin duplicados | Crítica | Completada | 13 áreas únicas; predominio y empates explícitos |
 | TASK-005 — Logo CBJML | Media | Completada | Imagen oficial cargada; fallback oculto mientras funciona |
-| QA-001 — Browser, privacidad y accesibilidad | Crítica | Completada | QA local + producción: `213` familias, filtros/persistencia, responsive y pregunta sticky |
+| QA-001 — Browser, privacidad y accesibilidad | Crítica | Completada | QA local + producción: `214` familias, filtros/persistencia, responsive y pregunta sticky |
 | SHIP-001 — Documentación, diff, commit y push | Alta | Completada | Commit `6f18ca6` y `origin/main` verificados; sin datos crudos en HEAD |
 | DEPLOY-001 — Rebuild y actualización del servicio | Crítica | Completada | `docker build --no-cache`, Swarm `1/1`, health `200`, ETL en vivo |
+| TASK-006 — Voz Directa: cuatro preguntas dinámicas | Crítica | Completada | El recuadro sticky cambia de texto y las citas cambian con la pregunta seleccionada |
+| QA-002 — Regresión de Voz Directa | Alta | Completada | 19 pruebas Python, sintaxis JS, navegador local/producción y responsive |
+| DEPLOY-002 — Rebuild con pregunta dinámica | Crítica | Completada | `dashboard_runtime.js?v=4`, ETL en vivo y rutas internas `404` |
+| SHIP-002 — Commit y push de la corrección | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 

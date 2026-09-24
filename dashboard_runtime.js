@@ -2,7 +2,12 @@
 (function () {
   'use strict';
 
-  const QUESTION = 'Si pudiera cambiar o mejorar UNA sola cosa del Colegio, ¿Cuál sería y cómo lo haría?';
+  const VOZ_QUESTION_FALLBACKS = {
+    no_perder: '¿Qué sería especialmente importante NO perder, aunque el Colegio atraviese procesos de cambio?',
+    cambiar: 'Si pudiera cambiar o mejorar UNA sola cosa del Colegio, ¿Cuál sería y cómo lo haría?',
+    ensenar: 'Complete la frase: «Quisiera que cuando mi hijo(a) termine el Colegio pudiera decir que el Colegio le enseñó principalmente a...',
+    recomendar: 'Si recomendara el Colegio, ¿qué sería lo principal que le diría a esa familia que encontrará aquí?'
+  };
   const STORAGE_KEY = 'cbjml.dashboard.ui.v1';
   const ACTIONS = ['Mantener', 'Mejorar', 'Transformar', 'No prioritario'];
   const NO_DATA = 'Sin respuesta';
@@ -366,6 +371,7 @@
     const list = $('quotesList');
     if (!list || !state.currentModel) return;
     const category = $('quoteCategory')?.value || state.quoteCategory;
+    updateQuestionText(category);
     const query = text($('quoteSearch')?.value || state.quoteSearch).toLowerCase().trim();
     list.replaceChildren();
     const filtered = state.currentModel.QUOTES.filter((quote) => text(quote[category]).trim() && (!query || text(quote[category]).toLowerCase().includes(query) || text(quote.curso).toLowerCase().includes(query)));
@@ -386,9 +392,11 @@
     });
   }
 
-  function updateQuestionText() {
+  function updateQuestionText(category) {
+    const key = text(category || $('quoteCategory')?.value || state.quoteCategory);
+    const source = questions().voz || {};
     const node = $('vozQuestionText');
-    if (node) node.textContent = QUESTION;
+    if (node) node.textContent = text(source[key] || VOZ_QUESTION_FALLBACKS[key] || VOZ_QUESTION_FALLBACKS.cambiar);
   }
 
   function renderDashboard() {
@@ -474,7 +482,7 @@
     [['filterSeccion', 'seccion'], ['filterAntiguedad', 'antiguedad'], ['filterCurso', 'curso']].forEach(([id, key]) => { if ($(id)) $(id).value = state.filters[key] || ''; });
     const panel = $('filterPanel'); if (panel) panel.classList.toggle('hidden', state.panelCollapsed);
     const toggle = $('filterToggle'); if (toggle) toggle.setAttribute('aria-expanded', String(!state.panelCollapsed));
-    window.toggleFilters = toggleFilters; window.resetFilters = resetFilters; window.applyFilters = applyFilters; window.switchTab = switchTab; window.updateDashboard = updateDashboard; window.renderQuotes = onQuoteCategoryChange; window.onQuoteSearchInput = onQuoteSearchInput; window.updateQuestionText = updateQuestionText;
+    window.toggleFilters = toggleFilters; window.resetFilters = resetFilters; window.applyFilters = applyFilters; window.switchTab = switchTab; window.updateDashboard = updateDashboard; window.renderQuotes = onQuoteCategoryChange; window.onQuoteCategoryChange = onQuoteCategoryChange; window.onQuoteSearchInput = onQuoteSearchInput; window.updateQuestionText = updateQuestionText;
     state.ready = true; switchTab(state.activeTab); renderDashboard();
   }
 
