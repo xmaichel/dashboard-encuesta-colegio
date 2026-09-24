@@ -72,7 +72,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - [x] Pruebas sintéticas y QA local en navegador.
 - [x] Build Docker y deploy Swarm.
 - [x] Verificación post-deploy en URL pública.
-- [x] Commit y push revisados.
+- [x] Commit y push revisados (`6f18ca6` + `b89420b`).
 
 ## Pipeline
 
