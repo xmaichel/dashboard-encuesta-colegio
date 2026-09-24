@@ -13,7 +13,7 @@
 | TASK-006 — Voz Directa: cuatro preguntas dinámicas | Crítica | Completada | El recuadro sticky cambia de texto y las citas cambian con la pregunta seleccionada |
 | QA-002 — Regresión de Voz Directa | Alta | Completada | 19 pruebas Python, sintaxis JS, navegador local/producción y responsive |
 | DEPLOY-002 — Rebuild con pregunta dinámica | Crítica | Completada | `dashboard_runtime.js?v=4`, ETL en vivo y rutas internas `404` |
-| SHIP-002 — Commit y push de la corrección | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-002 — Commit y push de la corrección | Alta | Completada | Commit `bba369f` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 
