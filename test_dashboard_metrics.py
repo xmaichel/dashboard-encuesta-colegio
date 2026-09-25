@@ -5,6 +5,7 @@ from __future__ import annotations
 import importlib.util
 import json
 import math
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -295,6 +296,57 @@ class PipelineTests(unittest.TestCase):
             [c.strip() for c in chart_colors.split(",")],
             [c.strip() for c in legend_colors.split(",")]
         )
+
+    def test_runtime_has_no_undefined_identifier_in_percentage_plugin(self):
+        # A leftover `halves.length = 0` from a cancelled refactor threw
+        # ReferenceError at draw time and silently removed every pie label.
+        # eslint-free repo: catch undefined identifiers with a small scope check.
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        start = runtime.index("afterDatasetsDraw(chart) {")
+        body = runtime[start:]
+        # Collect the identifiers this plugin declares or imports.
+        declared = set()
+        for pattern in (
+            r"const\s+([A-Za-z_$][\w$]*)",
+            r"let\s+([A-Za-z_$][\w$]*)",
+            r"\bfunction\s+([A-Za-z_$][\w$]*)",
+            r"([A-Za-z_$][\w$]*)\s*=.*=>",
+            r"\{([A-Za-z_$][\w$]*)\s*\}",
+        ):
+            declared.update(re.findall(pattern, body))
+        # Names available from the enclosing IIFE scope or the JS globals.
+        declared.update(
+            {
+                "Chart", "shareOf", "MIN_SHARE", "OUTSIDE_REACH", "OUTSIDE_MIN_GAP",
+                "MAX_OUTSIDE", "INLINE_MIN_GAP", "$", "state", "text",
+                "window", "document", "console", "Math", "Number", "Object",
+                "Array", "JSON", "String", "Boolean", "isNaN", "parseInt", "parseFloat",
+                "ResizeObserver", "requestAnimationFrame", "setTimeout", "clearTimeout",
+            }
+        )
+        assignments = re.findall(r"^\s*([A-Za-z_$][\w$]*)\.[A-Za-z_$][\w$]*\s*=", body, re.M)
+        for name in set(assignments):
+            self.assertIn(name, declared, f"undefined identifier {name!r} in percentage plugin")
+
+    def test_sixth_tab_conclusiones_is_wired(self):
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # Nav button and content container must both exist and be paired.
+        self.assertIn('id="tab-conclusiones"', template)
+        self.assertIn("switchTab('conclusiones')", template)
+        self.assertIn('id="content-conclusiones"', template)
+        # switchTab whitelists tab names: a new tab that is not listed is ignored.
+        body = runtime.split("function switchTab(tabName)", 1)[1].split("return;", 1)[0]
+        self.assertIn("'conclusiones'", body)
+        self.assertIn("'comunidad'", body)
+        self.assertIn("'resumen'", body)
+        # All six tab contents must exist exactly once.
+        for name in ("resumen", "calidad", "matriz", "retos", "comunidad", "conclusiones"):
+            self.assertEqual(template.count(f'id="content-{name}"'), 1, name)
+            self.assertEqual(template.count(f'id="tab-{name}"'), 1, name)
+        # The editorial percentages are static, so the tab must say so.
+        self.assertIn("insightsSampleSize", template)
+        self.assertIn("77 respuestas", template)
 
     def test_html_snapshot_contains_no_pii_columns(self):
         headers = self_headers()

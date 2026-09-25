@@ -51,6 +51,8 @@ OAuth2 → Sheets values.get → build_snapshot()
 - Retos: media de ranking; menor es más urgente; también `%` top 1–2.
 - Matriz: cada clave aparece una vez; se asigna al modal de la respuesta; empate explícito.
 - Multiselección: match contra opciones canónicas; nunca separar internamente por comas.
+- Nueva pestaña: además de crear `#tab-X` y `#content-X`, hay que añadir `'x'` a la lista blanca de `switchTab`; si falta, el botón no hace nada.
+- Texto editorial vs. calculado: si una pestaña trae porcentajes fijos de un corte histórico, declararlo visible en la pestaña y no presentarlos como indicadores que reaccionan a los filtros.
 - Tortas y anillos: el porcentaje numérico va dentro de la porción cuando es legible (≥ `MIN_SHARE`) y siempre en la leyenda; `generateLabels` recibe `{chart}` en Chart.js v4 y el chart en v3, aceptar ambas formas.
 - Leyenda con etiquetas largas: NO usar la leyenda de Chart.js cuando el canvas es estrecho (~250 px) y las opciones son frases; Chart.js recorta el texto y omite los cuadrados de color. Usar una lista HTML con swatch por fila (`#respCambioLegend`) y `legend: { display: false }`.
 - Una sola fuente de leyenda por gráfica: no duplicar en un bloque de texto lo que la leyenda ya muestra.

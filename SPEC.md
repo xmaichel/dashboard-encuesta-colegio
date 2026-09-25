@@ -59,6 +59,8 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC11: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza el texto y las citas.
 - AC12: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
 - AC13: Pruebas Python y `node --check` terminan correctamente antes del deploy.
+- AC14: La pestaña "6. Insights & Conclusiones" existe, aparece en el nav, se activa con `switchTab('conclusiones')` y su contenido es idéntico al aprovado; no altera el layout de las otras cinco.
+- AC15: Las gráficas de torta no lanzan excepciones al dibujarse: los porcentajes aparecen y no se montan entre sí, ni sin filtros ni con filtros.
 
 ## Constraints
 

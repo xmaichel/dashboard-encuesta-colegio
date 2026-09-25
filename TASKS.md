@@ -26,6 +26,10 @@
 | QA-005 — Regresión de leyenda y porcentajes | Alta | Completada | 24 pruebas Python, 17 escenarios de filtro, móvil 375/320 y evidencia visual |
 | DEPLOY-005 — Rebuild de leyenda | Crítica | Completada | `dashboard_runtime.js?v=8`, Swarm `1/1`, allowlist `404` |
 | SHIP-005 — Commit y push de leyenda | Alta | Completada | Commit `f120843` publicado en `origin/main`; sin datos crudos en HEAD |
+| TASK-010 — Reparar tortas y agregar pestaña 6 | Crítica | Completada | Fuera `halves.length = 0`; pestaña "6. Insights & Conclusiones" en nav y contenido |
+| QA-006 — Regresión de tortas y pestaña 6 | Alta | Completada | 26 pruebas Python, 10 porcentajes sin colisión, 6 pestañas, móvil 375/320 |
+| DEPLOY-006 — Rebuild con pestaña 6 | Crítica | Completada | `dashboard_runtime.js?v=9`, Swarm `1/1`, allowlist `404`, ETL en vivo |
+| SHIP-006 — Commit y push de pestaña 6 | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 

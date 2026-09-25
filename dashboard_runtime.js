@@ -244,6 +244,7 @@
   function updateStaticText(model) {
     setText('sampleTotal', `${model.N} familias`);
     setText('processedRecords', model.N);
+    setText('insightsSampleSize', model.N);
     setPct('kpiBienestar', model.KPIS.bienestar_hijos_pct);
     setPct('kpiValores', model.KPIS.valores_familia_pct);
     setPct('kpiPertenencia', model.KPIS.comunidad_leonista_pct);
@@ -428,7 +429,6 @@
           }
           if (!moved) break;
         }
-        halves.length = 0;
         // Lay the outside labels in two columns (right/left of the pie) and
         // spread each one so small slices never overlap each other.
         const outside = labels.filter((item) => item.outside);
@@ -730,7 +730,7 @@
   }
 
   function switchTab(tabName) {
-    if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad'].includes(tabName)) return;
+    if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad', 'conclusiones'].includes(tabName)) return;
     document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.id === `tab-${tabName}`));
     document.querySelectorAll('.tab-content').forEach((content) => content.classList.toggle('hidden', content.id !== `content-${tabName}`));
     resizeCharts();
