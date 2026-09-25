@@ -21,7 +21,7 @@
 | TASK-008 — Porcentajes numéricos en tortas | Crítica | Completada | Porción con `MIN_SHARE` y leyenda con % en las 3 tortas; barras intactas |
 | QA-004 — Regresión de porcentajes en tortas | Alta | Completada | 22 pruebas Python, evidencia visual y QA en producción con y sin filtros |
 | DEPLOY-004 — Rebuild con porcentajes en tortas | Crítica | Completada | `dashboard_runtime.js?v=6`, Swarm `1/1`, allowlist `404` |
-| SHIP-004 — Commit y push de porcentajes | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-004 — Commit y push de porcentajes | Alta | Completada | Commit `e951676` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 
