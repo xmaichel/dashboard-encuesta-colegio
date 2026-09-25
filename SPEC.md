@@ -25,6 +25,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - Retos: media de urgencia (1 más urgente) y % top 1–2.
 - Matriz: cada área una sola vez, asignada por respuesta predominante; empate explícito.
 - Nube: normalizar variantes y excluir términos sin contexto como `cada` y `estudiantes`.
+- Multiselección: ordenar por relevancia (número de respaldos), con desempate alfabético estable; el KPI Iniciativa Top debe mostrar la opción más apoyada, no la primera de la lista canónica.
 - Citas: texto público anonimizado, con curso, sección y antigüedad.
 
 ### R4 — UI
@@ -52,9 +53,10 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC5: Cambiar sección/curso modifica el modelo renderizado, no solo el contador.
 - AC6: La Matriz contiene 13 áreas únicas y los empates no se reparten.
 - AC7: La nube no contiene `cada`, `estudiantes` ni duplicados por tildes.
-- AC8: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza ambos el texto y las citas.
-- AC9: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
-- AC10: Pruebas Python y `node --check` terminan correctamente antes del deploy.
+- AC8: El KPI Iniciativa Top muestra la iniciativa con mayor número de respaldos entre las familias del filtro, no la primera opción canónica.
+- AC9: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza el texto y las citas.
+- AC10: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
+- AC11: Pruebas Python y `node --check` terminan correctamente antes del deploy.
 
 ## Constraints
 

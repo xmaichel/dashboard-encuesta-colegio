@@ -53,6 +53,8 @@ Filtros disponibles: colegio total, sección, antigüedad y curso. Se guardan en
 
 La nube de palabras normaliza tildes, elimina términos sin contexto como `cada` y `estudiantes`, y combina variantes. Las respuestas de la Matriz usan la opción predominante; los empates se muestran explícitamente y cada área aparece una sola vez.
 
+Las multiselecciones (iniciativas, identidad, diferencias y aportación) se ordenan por relevancia, es decir, por número de respaldos, con desempate alfabético para que el resultado sea estable. El KPI **Iniciativa Top** muestra siempre la iniciativa más apoyada por las familias del filtro activo.
+
 ## Privacidad
 
 El snapshot no incluye timestamp, correo ni columnas personales. Los textos libres se limpian y se redactan correos, enlaces, teléfonos y nombres explícitos cuando aparecen con títulos como “Sr.” o “profesor” antes de publicarse. `.gitignore` excluye credenciales, archivos crudos, snapshots locales y artefactos de QA.
@@ -61,10 +63,10 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 
 - `py_compile`: correcto.
 - `node --check dashboard_runtime.js`: correcto.
-- `python3 -m unittest -v test_dashboard_metrics.py`: 19 pruebas OK.
-- QA local y producción: `214` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
-- QA de Voz Directa: las cuatro preguntas actualizan el recuadro azul y muestran únicamente sus citas; el recuadro conserva `position: sticky`; producción verificada con `214` familias.
-- `dashboard_runtime.js?v=4` desplegado; `/api/update` respondió `200` con `214` familias; las rutas internas continuaron respondiendo `404`.
+- `python3 -m unittest -v test_dashboard_metrics.py`: 21 pruebas OK.
+- QA local y producción: `219` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
+- QA de Voz Directa: las cuatro preguntas actualizan el recuadro azul y muestran únicamente sus citas; el recuadro conserva `position: sticky`.
+- QA de Iniciativa Top: sin filtros muestra `Educación financiera` (la más apoyada) y con filtro de curso cambia a la más apoyada de ese grupo.
 - QA responsive: sin overflow horizontal a 375 px ni 320 px; logo con fallback.
-- Allowlist pública verificada: snapshot, ETL, servidor, `.env` y `data_*.js` devuelven `404`.
+- `dashboard_runtime.js?v=5` desplegado; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
 - Commit `bba369f` publicado en `origin/main`.

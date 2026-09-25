@@ -118,12 +118,16 @@
     }).filter((item) => item.count > 0);
   }
 
+  // Multiselect answers are ranked by relevance (support count) so KPIs such as
+  // "Iniciativa Top" point at the most supported option, not the first canonical
+  // label. Ties fall back to alphabetical order for a stable, reproducible view.
   function multiCount(records, getter, options) {
     const valid = records.filter((record) => validArray(getter(record)).length > 0);
     return options.map((label) => {
       const count = valid.filter((record) => validArray(getter(record)).includes(label)).length;
       return { opcion: label, count, pct: pct(count, valid.length) };
-    }).filter((item) => item.count > 0);
+    }).filter((item) => item.count > 0)
+      .sort((a, b) => b.count - a.count || a.opcion.localeCompare(b.opcion, 'es'));
   }
 
   function computeMatrix(records) {

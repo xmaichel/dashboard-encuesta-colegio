@@ -237,12 +237,16 @@ def _count_option(records: list[dict[str, Any]], getter: Any, options: list[str]
 
 
 def _count_multi(records: list[dict[str, Any]], getter: Any, options: list[str]) -> list[dict[str, Any]]:
+    # Rank multiselect answers by support so "Iniciativa Top" reports the most
+    # relevant option instead of the first canonical label. Ties break
+    # alphabetically to keep repeated runs identical.
     valid = [record for record in records if getter(record)]
     total = len(valid)
     result = [{"opcion": option, "count": sum(1 for record in valid if option in getter(record)), "pct": 0.0} for option in options]
     for item in result:
         item["pct"] = pct(item["count"], total)
-    return [item for item in result if item["count"] > 0]
+    ranked = [item for item in result if item["count"] > 0]
+    return sorted(ranked, key=lambda item: (-item["count"], item["opcion"]))
 
 
 def compute_metrics(payload: list[dict[str, Any]] | dict[str, Any]) -> dict[str, Any]:

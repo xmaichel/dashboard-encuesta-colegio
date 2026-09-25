@@ -189,6 +189,35 @@ class MetricTests(unittest.TestCase):
         model = etl.compute_metrics(etl.build_snapshot([headers, *rows]))
         self.assertEqual(model["KPIS"]["participacion_activa_pct"], 66.7)
 
+    def test_initiative_kpi_reports_most_supported_not_first_canonical(self):
+        # "Esquemas de reconocimiento monetario" is the first canonical option but
+        # has the least support here; "Educación financiera" must win the KPI.
+        headers = self_headers()
+        rows = [
+            make_row({52: "Esquemas de reconocimiento monetario a estudiantes destacados"}),
+            make_row({52: "Educación financiera"}),
+            make_row({52: "Educación financiera, Mentoría profesional o de emprendimiento"}),
+        ]
+        model = etl.compute_metrics(etl.build_snapshot([headers, *rows]))
+        self.assertEqual(model["KPIS"]["iniciativa_top_1"], "Educación financiera")
+        # 2 of the 3 valid families chose it.
+        self.assertEqual(model["KPIS"]["iniciativa_top_1_pct"], 66.7)
+        self.assertEqual(model["INICIATIVAS"][0]["opcion"], "Educación financiera")
+        counts = [item["count"] for item in model["INICIATIVAS"]]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+
+    def test_multiselect_ranking_breaks_ties_alphabetically(self):
+        headers = self_headers()
+        rows = [
+            make_row({52: "Educación financiera"}),
+            make_row({52: "Red de exalumnos y familias"}),
+        ]
+        model = etl.compute_metrics(etl.build_snapshot([headers, *rows]))
+        self.assertEqual(
+            [item["opcion"] for item in model["INICIATIVAS"]],
+            ["Educación financiera", "Red de exalumnos y familias"],
+        )
+
 
 class PipelineTests(unittest.TestCase):
     def test_same_snapshot_produces_identical_html(self):
