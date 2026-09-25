@@ -17,7 +17,7 @@
 | TASK-007 — KPI Iniciativa Top por relevancia | Crítica | Completada | Multiselección ordenada por respaldos; sin filtros muestra `Educación financiera` |
 | QA-003 — Regresión del KPI Iniciativa Top | Alta | Completada | 21 pruebas Python, navegador local/producción y filtros por sección, antigüedad y curso |
 | DEPLOY-003 — Rebuild del KPI por relevancia | Crítica | Completada | `dashboard_runtime.js?v=5`, Swarm `1/1`, allowlist `404`, ETL en vivo |
-| SHIP-003 — Commit y push del KPI | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-003 — Commit y push del KPI | Alta | Completada | Commit `ebdb35d` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 

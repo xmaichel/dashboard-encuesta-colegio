@@ -69,4 +69,4 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 - QA de Iniciativa Top: sin filtros muestra `Educación financiera` (la más apoyada) y con filtro de curso cambia a la más apoyada de ese grupo.
 - QA responsive: sin overflow horizontal a 375 px ni 320 px; logo con fallback.
 - `dashboard_runtime.js?v=5` desplegado; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
-- Commit `bba369f` publicado en `origin/main`.
+- Commit `ebdb35d` publicado en `origin/main`.
