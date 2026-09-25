@@ -63,10 +63,10 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 
 - `py_compile`: correcto.
 - `node --check dashboard_runtime.js`: correcto.
-- `python3 -m unittest -v test_dashboard_metrics.py`: 21 pruebas OK.
-- QA local y producción: `219` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
+- `python3 -m unittest -v test_dashboard_metrics.py`: 22 pruebas OK.
+- QA local y producción: `225` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
 - QA de Voz Directa: las cuatro preguntas actualizan el recuadro azul y muestran únicamente sus citas; el recuadro conserva `position: sticky`.
 - QA de Iniciativa Top: sin filtros muestra `Educación financiera` (la más apoyada) y con filtro de curso cambia a la más apoyada de ese grupo.
 - QA responsive: sin overflow horizontal a 375 px ni 320 px; logo con fallback.
-- `dashboard_runtime.js?v=5` desplegado; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
+- `dashboard_runtime.js?v=6` desplegado; porcentajes numéricos visibles en las tres gráficas de torta; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
 - Commit `ebdb35d` publicado en `origin/main`.

@@ -259,6 +259,77 @@
   }
 
   function chartConfig(type, data, options) { return { type, data, options: { responsive: true, maintainAspectRatio: false, ...options } }; }
+
+  // Percentages are shown twice on purpose: inside each pie/doughnut slice when
+  // it is wide enough to read, and in the legend for every slice. Slices under
+  // MIN_SHARE would overlap if labelled inline, so only the legend carries them.
+  const MIN_SHARE = 4;
+  let percentageLabelsRegistered = false;
+
+  function shareOf(counts) {
+    const total = counts.reduce((sum, value) => sum + (Number(value) || 0), 0);
+    return counts.map((value) => (total ? Math.round(((Number(value) || 0) / total) * 1000) / 10 : 0));
+  }
+
+  // Keeps `data.labels` clean for tooltips while the legend text carries "%".
+  // Chart.js calls this with `{ chart }` in v4+ and with the chart itself in v3,
+  // so both shapes are accepted to avoid breaking the legend.
+  function percentLegend() {
+    return {
+      generateLabels: (context) => {
+        const chart = context && context.data && context.datasets ? context : (context && context.chart) || context;
+        const datasets = (chart && chart.data && chart.data.datasets) || [];
+        const dataset = datasets[0] || {};
+        const data = Array.isArray(dataset.data) ? dataset.data : [];
+        const shares = shareOf(data);
+        const colors = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor : [];
+        const labels = (chart && chart.data && chart.data.labels) || [];
+        return labels.map((label, index) => ({
+          text: `${label} (${shares[index] ?? 0}%)`,
+          fillStyle: colors[index] || '#94a3b8',
+          strokeStyle: colors[index] || '#94a3b8',
+          lineWidth: 0,
+          hidden: false,
+          fontColor: '#475569',
+          index
+        }));
+      }
+    };
+  }
+
+  function registerPercentageLabels() {
+    if (percentageLabelsRegistered || typeof Chart === 'undefined') return;
+    Chart.register({
+      id: 'cbjmlPercentageLabels',
+      afterDatasetsDraw(chart) {
+        const type = chart.config.type;
+        if (type !== 'pie' && type !== 'doughnut') return;
+        const dataset = (chart.data.datasets || [])[0];
+        if (!dataset || !Array.isArray(dataset.data)) return;
+        const shares = shareOf(dataset.data);
+        const context = chart.ctx;
+        context.save();
+        context.font = '600 11px Inter, system-ui, sans-serif';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        chart.getDatasetMeta(0).data.forEach((arc, index) => {
+          const value = Number(dataset.data[index]) || 0;
+          if (value <= 0 || (shares[index] ?? 0) < MIN_SHARE) return;
+          const position = arc.tooltipPosition();
+          if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+          const label = `${shares[index]}%`;
+          context.lineWidth = 3;
+          context.strokeStyle = 'rgba(15, 23, 42, 0.55)';
+          context.strokeText(label, position.x, position.y);
+          context.fillStyle = '#ffffff';
+          context.fillText(label, position.x, position.y);
+        });
+        context.restore();
+      }
+    });
+    percentageLabelsRegistered = true;
+  }
+
   function upsertChart(id, config) {
     const canvas = $(id);
     if (!canvas || typeof Chart === 'undefined') return;
@@ -275,11 +346,12 @@
 
   function renderCharts(model) {
     if (typeof Chart === 'undefined') return;
-    upsertChart('chartRespCambios', chartConfig('doughnut', { labels: model.RESP_CAMBIOS.map((item) => item.label), datasets: [{ data: model.RESP_CAMBIOS.map((item) => item.count), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ef4444'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 } } }, tooltip: { callbacks: { label: (ctx) => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.parsed} (${total ? Math.round(ctx.parsed / total * 1000) / 10 : 0}%)`; } } } } }));
-    upsertChart('chartCursos', chartConfig('pie', { labels: model.DEMO.secciones.map((item) => item.label), datasets: [{ data: model.DEMO.secciones.map((item) => item.count), backgroundColor: ['#059669', '#d97706', '#dc2626'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed} familias` } } } }));
+    registerPercentageLabels();
+    upsertChart('chartRespCambios', chartConfig('doughnut', { labels: model.RESP_CAMBIOS.map((item) => item.label), datasets: [{ data: model.RESP_CAMBIOS.map((item) => item.count), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ef4444'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, ...percentLegend() } }, tooltip: { callbacks: { label: (ctx) => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.parsed} (${total ? Math.round(ctx.parsed / total * 1000) / 10 : 0}%)`; } } } } }));
+    upsertChart('chartCursos', chartConfig('pie', { labels: model.DEMO.secciones.map((item) => item.label), datasets: [{ data: model.DEMO.secciones.map((item) => item.count), backgroundColor: ['#059669', '#d97706', '#dc2626'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, ...percentLegend() } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed} familias` } } } }));
     const antiguedadLabels = ANTIGUEDAD;
     upsertChart('chartAntiguedad', chartConfig('bar', { labels: antiguedadLabels, datasets: [{ label: 'Familias', data: antiguedadLabels.map((label) => model.DEMO.antiguedad.find((item) => item.label === label)?.count || 0), backgroundColor: '#0284c7' }] }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }));
-    upsertChart('chartParticipacion', chartConfig('doughnut', { labels: PARTICIPATION, datasets: [{ data: PARTICIPATION.map((label) => model.DEMO.participacion.find((item) => item.label === label)?.count || 0), backgroundColor: ['#059669', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } } } }));
+    upsertChart('chartParticipacion', chartConfig('doughnut', { labels: PARTICIPATION, datasets: [{ data: PARTICIPATION.map((label) => model.DEMO.participacion.find((item) => item.label === label)?.count || 0), backgroundColor: ['#059669', '#10b981', '#f59e0b', '#f97316', '#ef4444', '#8b5cf6'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, ...percentLegend() } } } }));
     const aspects = [...model.aspects].sort((a, b) => b.satisfaccion_positiva_pct - a.satisfaccion_positiva_pct);
     upsertChart('chartAspectos', chartConfig('bar', { labels: aspects.map((item) => item.aspecto), datasets: [
       { label: 'Excelente (%)', data: aspects.map((item) => item.Excelente.pct), backgroundColor: '#059669' },

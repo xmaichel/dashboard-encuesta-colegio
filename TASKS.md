@@ -18,6 +18,10 @@
 | QA-003 — Regresión del KPI Iniciativa Top | Alta | Completada | 21 pruebas Python, navegador local/producción y filtros por sección, antigüedad y curso |
 | DEPLOY-003 — Rebuild del KPI por relevancia | Crítica | Completada | `dashboard_runtime.js?v=5`, Swarm `1/1`, allowlist `404`, ETL en vivo |
 | SHIP-003 — Commit y push del KPI | Alta | Completada | Commit `ebdb35d` publicado en `origin/main`; sin datos crudos en HEAD |
+| TASK-008 — Porcentajes numéricos en tortas | Crítica | Completada | Porción con `MIN_SHARE` y leyenda con % en las 3 tortas; barras intactas |
+| QA-004 — Regresión de porcentajes en tortas | Alta | Completada | 22 pruebas Python, evidencia visual y QA en producción con y sin filtros |
+| DEPLOY-004 — Rebuild con porcentajes en tortas | Crítica | Completada | `dashboard_runtime.js?v=6`, Swarm `1/1`, allowlist `404` |
+| SHIP-004 — Commit y push de porcentajes | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 

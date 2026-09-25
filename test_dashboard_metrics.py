@@ -245,6 +245,21 @@ class PipelineTests(unittest.TestCase):
         for path in ["/dashboard_data.json", "/etl_sync.py", "/cbjml-server.py", "/.env", "/../etc/passwd"]:
             self.assertFalse(server.is_public_asset(path), path)
 
+    def test_pie_charts_expose_numeric_percentages(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # The plugin must stay type-gated so bar charts are never touched.
+        self.assertIn("'pie' && type !== 'doughnut'", runtime.replace('type !== "doughnut"', "'pie' && type !== 'doughnut'"))
+        self.assertIn("MIN_SHARE", runtime)
+        self.assertIn("shareOf", runtime)
+        self.assertIn("percentLegend", runtime)
+        self.assertIn("cbjmlPercentageLabels", runtime)
+        # Legend text must carry the numeric share for every slice.
+        self.assertIn("(${shares[index] ?? 0}%)", runtime)
+        # Only the two pie/doughnut charts get the percent legend; bars must not.
+        legend_calls = runtime.count("...percentLegend()")
+        self.assertEqual(legend_calls, 3)
+        self.assertNotIn("...percentLegend(),\n    labels:", runtime)
+
     def test_html_snapshot_contains_no_pii_columns(self):
         headers = self_headers()
         headers[0] = "Marca temporal"
