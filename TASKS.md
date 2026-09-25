@@ -22,6 +22,10 @@
 | QA-004 — Regresión de porcentajes en tortas | Alta | Completada | 22 pruebas Python, evidencia visual y QA en producción con y sin filtros |
 | DEPLOY-004 — Rebuild con porcentajes en tortas | Crítica | Completada | `dashboard_runtime.js?v=6`, Swarm `1/1`, allowlist `404` |
 | SHIP-004 — Commit y push de porcentajes | Alta | Completada | Commit `e951676` publicado en `origin/main`; sin datos crudos en HEAD |
+| TASK-009 — Leyenda única con color en Respuesta al Cambio | Crítica | Completada | Lista HTML `#respCambioLegend` con swatch; fuera la leyenda de Chart.js y el bloque duplicado |
+| QA-005 — Regresión de leyenda y porcentajes | Alta | Completada | 24 pruebas Python, 17 escenarios de filtro, móvil 375/320 y evidencia visual |
+| DEPLOY-005 — Rebuild de leyenda | Crítica | Completada | `dashboard_runtime.js?v=8`, Swarm `1/1`, allowlist `404` |
+| SHIP-005 — Commit y push de leyenda | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 

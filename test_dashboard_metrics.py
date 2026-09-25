@@ -255,10 +255,46 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("cbjmlPercentageLabels", runtime)
         # Legend text must carry the numeric share for every slice.
         self.assertIn("(${shares[index] ?? 0}%)", runtime)
-        # Only the two pie/doughnut charts get the percent legend; bars must not.
+        # Only the pie/doughnut charts that fit use the Chart.js percent legend.
+        # chartRespCambios renders a real HTML list instead: its labels are long
+        # sentences and Chart.js clipped them on a ~250px canvas.
         legend_calls = runtime.count("...percentLegend()")
-        self.assertEqual(legend_calls, 3)
+        self.assertEqual(legend_calls, 2)
         self.assertNotIn("...percentLegend(),\n    labels:", runtime)
+        self.assertIn("display: false", runtime.split("chartRespCambios", 1)[1][:400])
+
+    def test_pie_percentage_plugin_has_no_out_of_scope_arc(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # The outside-label builder was extracted from the arcs.forEach body, so
+        # it must not reference `arc` any more: that threw ReferenceError at draw
+        # time and silently killed every label in the chart.
+        body = runtime.split("outsideCandidates.slice(0, MAX_OUTSIDE).forEach", 1)[1]
+        body = body.split("});", 1)[0]
+        self.assertNotIn("arc.", body)
+        self.assertIn("cx, cy", runtime)
+        # The cap must exist, otherwise tiny slices produce an unreadable web.
+        self.assertIn("MAX_OUTSIDE", runtime)
+        self.assertIn("OUTSIDE_MIN_GAP", runtime)
+        self.assertIn("OUTSIDE_REACH", runtime)
+
+    def test_resp_cambio_legend_is_a_single_html_list_with_swatches(self):
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # Exactly one legend source: the old duplicated text block must be gone.
+        self.assertIn('id="respCambioLegend"', template)
+        self.assertNotIn("respCambioText", template)
+        self.assertNotIn("respCambioText", runtime)
+        # Each row must carry a colour swatch so the option can be identified.
+        self.assertIn("RESP_CAMBIO_COLORS", runtime)
+        self.assertIn("swatch.style.backgroundColor = color", runtime)
+        # Swatch colours must match the doughnut dataset colours exactly.
+        dataset = runtime.split("chartRespCambios", 1)[1]
+        chart_colors = dataset.split("backgroundColor: [", 1)[1].split("]", 1)[0]
+        legend_colors = runtime.split("RESP_CAMBIO_COLORS = [", 1)[1].split("]", 1)[0]
+        self.assertEqual(
+            [c.strip() for c in chart_colors.split(",")],
+            [c.strip() for c in legend_colors.split(",")]
+        )
 
     def test_html_snapshot_contains_no_pii_columns(self):
         headers = self_headers()

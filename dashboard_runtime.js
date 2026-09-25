@@ -255,15 +255,51 @@
     setText('narrativeValores', `La formación bilingüe (${model.aspects[0]?.satisfaccion_positiva_pct || 0}%) y el pensamiento crítico (${model.aspects[1]?.satisfaccion_positiva_pct || 0}%) son los aspectos mejor calificados.`);
     setText('narrativeRetos', `${model.KPIS.reto_urgente_1} (${model.KPIS.reto_urgente_1_pct}%) y ${model.KPIS.reto_urgente_2} (${model.KPIS.reto_urgente_2_pct}%) lideran la urgencia generacional.`);
     setText('narrativeAccion', `El ${model.KPIS.iniciativa_top_1_pct}% prioriza ${model.KPIS.iniciativa_top_1}; la disposición a aportar es de ${model.KPIS.disposicion_aporte_pct}%.`);
-    setText('respCambioText', model.RESP_CAMBIOS.map((item) => `${item.label}: ${item.pct}%`).join('. '));
+    renderRespCambioLegend(model.RESP_CAMBIOS);
+  }
+
+  // Chart.js truncated this legend: the option labels are long sentences and the
+  // canvas is only ~250px wide, so it clipped the text and dropped the colour
+  // swatches. A real HTML list gives every option a full-width row with its
+  // swatch, and it never clips.
+  const RESP_CAMBIO_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ef4444'];
+
+  function renderRespCambioLegend(items) {
+    const list = $('respCambioLegend');
+    if (!list) return;
+    list.textContent = '';
+    items.forEach((item, index) => {
+      const color = RESP_CAMBIO_COLORS[index % RESP_CAMBIO_COLORS.length];
+      const row = document.createElement('li');
+      row.className = 'flex items-start gap-2';
+      const swatch = document.createElement('span');
+      swatch.className = 'inline-block w-3 h-3 rounded-sm shrink-0 mt-0.5';
+      swatch.style.backgroundColor = color;
+      swatch.setAttribute('aria-hidden', 'true');
+      const text = document.createElement('span');
+      text.className = 'flex-1 min-w-0';
+      text.textContent = `${item.label}: ${item.pct}%`;
+      row.appendChild(swatch);
+      row.appendChild(text);
+      list.appendChild(row);
+    });
   }
 
   function chartConfig(type, data, options) { return { type, data, options: { responsive: true, maintainAspectRatio: false, ...options } }; }
 
-  // Percentages are shown twice on purpose: inside each pie/doughnut slice when
-  // it is wide enough to read, and in the legend for every slice. Slices under
-  // MIN_SHARE would overlap if labelled inline, so only the legend carries them.
+  // Percentages are shown in two places on purpose: inside each pie/doughnut
+  // slice when it is wide enough to read, and outside the pie with a leader
+  // line when it is too small. The legend always carries every percentage.
+  // MIN_SHARE is the inline threshold; OUTSIDE_* tune the leader-line labels.
+  // INLINE_MIN_GAP keeps two inline labels from touching when both slices are
+  // just above the threshold but sit close to each other.
   const MIN_SHARE = 4;
+  const INLINE_MIN_GAP = 11;
+  const OUTSIDE_REACH = 14;
+  const OUTSIDE_MIN_GAP = 13;
+  // Cap the leader-line labels: past this many tiny slices the lines cross so
+  // much they read worse than the legend, so the rest stay legend-only.
+  const MAX_OUTSIDE = 6;
   let percentageLabelsRegistered = false;
 
   function shareOf(counts) {
@@ -308,21 +344,181 @@
         if (!dataset || !Array.isArray(dataset.data)) return;
         const shares = shareOf(dataset.data);
         const context = chart.ctx;
+        const arcs = chart.getDatasetMeta(0).data || [];
+        const area = chart.chartArea;
+        // Out-of-arc labels need horizontal room, otherwise they get clipped.
+        const roomy = !!area && area.right - area.left > 40;
+        const labels = [];
+        const outsideCandidates = [];
+        arcs.forEach((arc, index) => {
+          const value = Number(dataset.data[index]) || 0;
+          if (value <= 0) return;
+          const share = shares[index] ?? 0;
+          const label = `${share}%`;
+          if (share >= MIN_SHARE) {
+            const position = arc.tooltipPosition();
+            if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
+            labels.push({ label, x: position.x, y: position.y, w: context.measureText(label).width, outside: false });
+            return;
+          }
+          // Small slice: percentage goes outside the pie with a leader line.
+          if (!roomy || arc.fullCircles) return;
+          const start = Number(arc.startAngle);
+          const end = Number(arc.endAngle);
+          const radius = Number(arc.outerRadius);
+          if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(radius) || radius <= 0) return;
+          const mid = (start + end) / 2;
+          const x0 = arc.x + Math.cos(mid) * radius;
+          const y0 = arc.y + Math.sin(mid) * radius;
+          const right = Math.cos(mid) >= 0;
+          outsideCandidates.push({ share, label, x0, y0, right, mid, radius, cx: arc.x, cy: arc.y });
+        });
         context.save();
         context.font = '600 11px Inter, system-ui, sans-serif';
-        context.textAlign = 'center';
         context.textBaseline = 'middle';
-        chart.getDatasetMeta(0).data.forEach((arc, index) => {
-          const value = Number(dataset.data[index]) || 0;
-          if (value <= 0 || (shares[index] ?? 0) < MIN_SHARE) return;
-          const position = arc.tooltipPosition();
-          if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
-          const label = `${shares[index]}%`;
-          context.lineWidth = 3;
-          context.strokeStyle = 'rgba(15, 23, 42, 0.55)';
-          context.strokeText(label, position.x, position.y);
-          context.fillStyle = '#ffffff';
-          context.fillText(label, position.x, position.y);
+        // Give the leader lines to the biggest tiny slices; the rest are
+        // legend-only so the fan of lines never becomes an unreadable web.
+        outsideCandidates.sort((a, b) => b.share - a.share || a.mid - b.mid);
+        outsideCandidates.slice(0, MAX_OUTSIDE).forEach((item) => {
+          const { label, x0, y0, right, mid, radius: outRadius, cx, cy } = item;
+          const elbowX = right
+            ? Math.max(cx + outRadius + 8, cx + Math.cos(mid) * (outRadius + OUTSIDE_REACH))
+            : Math.min(cx - outRadius - 8, cx + Math.cos(mid) * (outRadius + OUTSIDE_REACH));
+          const elbowY = cy + Math.sin(mid) * (outRadius + OUTSIDE_REACH);
+          const tailX = elbowX + (right ? OUTSIDE_REACH / 2 : -OUTSIDE_REACH / 2);
+          labels.push({
+            label, x0, y0, elbowX, elbowY, tailX,
+            x: tailX + (right ? 4 : -4),
+            y: elbowY,
+            right,
+            outside: true
+          });
+        });
+        if (!labels.length) {
+          context.restore();
+          return;
+        }
+        // Two inline labels can still touch when both slices are just above the
+        // threshold but neighbouring. Iterate until nothing overlaps: one pass is
+        // not enough when three or more labels crowd the same arc of the pie.
+        const inline = labels.filter((item) => !item.outside);
+        for (let pass = 0; pass < 12 && inline.length > 1; pass += 1) {
+          let moved = false;
+          for (let i = 0; i < inline.length; i += 1) {
+            for (let j = i + 1; j < inline.length; j += 1) {
+              const a = inline[i];
+              const b = inline[j];
+              const ha = a.w / 2;
+              const hb = b.w / 2;
+              const overlapX = Math.min(a.x + ha, b.x + hb) - Math.max(a.x - ha, b.x - hb);
+              const overlapY = Math.min(a.y, b.y) + 5.5 - (Math.max(a.y, b.y) - 5.5);
+              if (overlapX <= 0 || overlapY <= 0) continue;
+              moved = true;
+              const midX = (a.x + b.x) / 2;
+              const midY = (a.y + b.y) / 2;
+              const dirX = a.x - midX;
+              const dirY = a.y - midY;
+              const len = Math.hypot(dirX, dirY) || 1;
+              const push = (overlapY + INLINE_MIN_GAP) / 2;
+              a.x += (dirX / len) * push;
+              a.y += (dirY / len) * push;
+              b.x -= (dirX / len) * push;
+              b.y -= (dirY / len) * push;
+            }
+          }
+          if (!moved) break;
+        }
+        halves.length = 0;
+        // Lay the outside labels in two columns (right/left of the pie) and
+        // spread each one so small slices never overlap each other.
+        const outside = labels.filter((item) => item.outside);
+        const side = (item) => (item.right ? 1 : -1);
+        const groups = { '-1': [], 1: [] };
+        outside.forEach((item) => { groups[side(item)].push(item); });
+        const top = area ? area.top + 6 : 0;
+        const bottom = area ? area.bottom - 6 : 0;
+        [-1, 1].forEach((key) => {
+          const group = groups[key];
+          if (group.length < 1) return;
+          group.sort((a, b) => a.y - b.y || a.x - b.x);
+          if (group.length > 1) {
+            for (let i = 1; i < group.length; i += 1) {
+              const gap = group[i].y - group[i - 1].y;
+              if (gap < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP;
+            }
+            // If the column no longer fits, compact it and re-centre on the pie.
+            const overflow = group[group.length - 1].y - bottom;
+            if (overflow > 0) {
+              group.forEach((item) => {
+                item.y = Math.max(top, item.y - overflow);
+                // The elbow follows the text so the leader keeps its shape.
+                item.elbowY = item.y;
+              });
+              // Second pass: guarantee the gap even after clamping.
+              for (let i = 1; i < group.length; i += 1) {
+                if (group[i].y - group[i - 1].y < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP;
+              }
+            }
+            // The first label can also start above the canvas: push the whole
+            // column down, otherwise it renders off-canvas and gets clipped.
+            const underflow = top - group[0].y;
+            if (underflow > 0) group.forEach((item) => { item.y += underflow; });
+          }
+          group.forEach((item) => { item.elbowY = item.y; });
+        });
+        // Horizontal clamp: no outside label may leave the canvas bounds.
+        if (area) {
+          outside.forEach((item) => {
+            const width = context.measureText(item.label).width;
+            if (item.right) {
+              const limit = area.right - width;
+              if (item.x > limit) {
+                const shift = item.x - limit;
+                item.x -= shift;
+                item.tailX -= shift;
+                item.elbowX = Math.min(item.elbowX, item.tailX);
+              }
+            } else {
+              const limit = area.left + width;
+              if (item.x < limit) {
+                const shift = limit - item.x;
+                item.x += shift;
+                item.tailX += shift;
+                item.elbowX = Math.max(item.elbowX, item.tailX);
+              }
+            }
+          });
+        }
+        labels.forEach((item) => {
+          if (!item.outside) {
+            context.textAlign = 'center';
+            context.lineWidth = 3;
+            context.strokeStyle = 'rgba(15, 23, 42, 0.55)';
+            context.strokeText(item.label, item.x, item.y);
+            context.fillStyle = '#ffffff';
+            context.fillText(item.label, item.x, item.y);
+            return;
+          }
+          // Skip any label that still does not fit: the legend already carries
+          // its percentage, so a clipped number is worse than no number here.
+          const width = context.measureText(item.label).width;
+          const left = item.right ? item.x : item.x - width;
+          if (area && (left < area.left - 0.5 || left + width > area.right + 0.5)) return;
+          if (item.y < 0 || item.y > (area ? area.bottom : item.y)) return;
+          context.strokeStyle = 'rgba(100, 116, 139, 0.85)';
+          context.lineWidth = 1;
+          context.beginPath();
+          context.moveTo(item.x0, item.y0);
+          context.lineTo(item.elbowX, item.elbowY);
+          context.lineTo(item.tailX, item.y);
+          context.stroke();
+          context.beginPath();
+          context.arc(item.x0, item.y0, 2, 0, Math.PI * 2);
+          context.fillStyle = 'rgba(100, 116, 139, 0.9)';
+          context.fill();
+          context.textAlign = item.right ? 'left' : 'right';
+          context.fillStyle = '#334155';
+          context.fillText(item.label, item.x, item.y);
         });
         context.restore();
       }
@@ -347,7 +543,7 @@
   function renderCharts(model) {
     if (typeof Chart === 'undefined') return;
     registerPercentageLabels();
-    upsertChart('chartRespCambios', chartConfig('doughnut', { labels: model.RESP_CAMBIOS.map((item) => item.label), datasets: [{ data: model.RESP_CAMBIOS.map((item) => item.count), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ef4444'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 10 }, ...percentLegend() } }, tooltip: { callbacks: { label: (ctx) => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.parsed} (${total ? Math.round(ctx.parsed / total * 1000) / 10 : 0}%)`; } } } } }));
+    upsertChart('chartRespCambios', chartConfig('doughnut', { labels: model.RESP_CAMBIOS.map((item) => item.label), datasets: [{ data: model.RESP_CAMBIOS.map((item) => item.count), backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#6366f1', '#ef4444'] }] }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => { const total = ctx.dataset.data.reduce((a, b) => a + b, 0); return `${ctx.label}: ${ctx.parsed} (${total ? Math.round(ctx.parsed / total * 1000) / 10 : 0}%)`; } } } } }));
     upsertChart('chartCursos', chartConfig('pie', { labels: model.DEMO.secciones.map((item) => item.label), datasets: [{ data: model.DEMO.secciones.map((item) => item.count), backgroundColor: ['#059669', '#d97706', '#dc2626'] }] }, { plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 }, ...percentLegend() } }, tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${ctx.parsed} familias` } } } }));
     const antiguedadLabels = ANTIGUEDAD;
     upsertChart('chartAntiguedad', chartConfig('bar', { labels: antiguedadLabels, datasets: [{ label: 'Familias', data: antiguedadLabels.map((label) => model.DEMO.antiguedad.find((item) => item.label === label)?.count || 0), backgroundColor: '#0284c7' }] }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }));

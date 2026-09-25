@@ -52,6 +52,9 @@ OAuth2 → Sheets values.get → build_snapshot()
 - Matriz: cada clave aparece una vez; se asigna al modal de la respuesta; empate explícito.
 - Multiselección: match contra opciones canónicas; nunca separar internamente por comas.
 - Tortas y anillos: el porcentaje numérico va dentro de la porción cuando es legible (≥ `MIN_SHARE`) y siempre en la leyenda; `generateLabels` recibe `{chart}` en Chart.js v4 y el chart en v3, aceptar ambas formas.
+- Leyenda con etiquetas largas: NO usar la leyenda de Chart.js cuando el canvas es estrecho (~250 px) y las opciones son frases; Chart.js recorta el texto y omite los cuadrados de color. Usar una lista HTML con swatch por fila (`#respCambioLegend`) y `legend: { display: false }`.
+- Una sola fuente de leyenda por gráfica: no duplicar en un bloque de texto lo que la leyenda ya muestra.
+- Colores de leyenda: deben coincidir exactamente con `backgroundColor` del dataset; hay prueba que lo verifica.
 - Ranking de multiselección: ordenar por número de respaldos, no por el orden de la lista canónica; desempate alfabético estable.
 - Nube: normalizar Unicode, combinar tildes y eliminar stop words/contexto.
 - KPIs y filtros: se recalculan en `dashboard_runtime.js` desde el snapshot v2.

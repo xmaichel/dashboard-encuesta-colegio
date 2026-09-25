@@ -54,10 +54,11 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC6: La Matriz contiene 13 áreas únicas y los empates no se reparten.
 - AC7: La nube no contiene `cada`, `estudiantes` ni duplicados por tildes.
 - AC8: El KPI Iniciativa Top muestra la iniciativa con mayor número de respaldos entre las familias del filtro, no la primera opción canónica.
-- AC9: Las gráficas de torta y anillo muestran el porcentaje numérico dentro de cada porción (porciones legibles) y en la leyenda de todas las opciones; las gráficas de barras no se modifican.
-- AC10: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza el texto y las citas.
-- AC11: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
-- AC12: Pruebas Python y `node --check` terminan correctamente antes del deploy.
+- AC9: Las gráficas de torta y anillo muestran el porcentaje numérico dentro de cada porción (porciones legibles) y en la leyenda de las opciones; las gráficas de barras no se modifican.
+- AC10: "Respuesta al Cambio" tiene UNA sola leyenda, en lista HTML, con un cuadro de color visible por opción, texto completo sin cortes y colores idénticos a los del anillo; no existe bloque de texto duplicado.
+- AC11: Hay exactamente un `#vozQuestionBar` y un `#vozQuestionText`; cambiar cualquiera de las cuatro preguntas actualiza el texto y las citas.
+- AC12: El snapshot no contiene email, URL, teléfono, timestamp ni secretos.
+- AC13: Pruebas Python y `node --check` terminan correctamente antes del deploy.
 
 ## Constraints
 
