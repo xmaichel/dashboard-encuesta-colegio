@@ -25,7 +25,7 @@
 | TASK-009 — Leyenda única con color en Respuesta al Cambio | Crítica | Completada | Lista HTML `#respCambioLegend` con swatch; fuera la leyenda de Chart.js y el bloque duplicado |
 | QA-005 — Regresión de leyenda y porcentajes | Alta | Completada | 24 pruebas Python, 17 escenarios de filtro, móvil 375/320 y evidencia visual |
 | DEPLOY-005 — Rebuild de leyenda | Crítica | Completada | `dashboard_runtime.js?v=8`, Swarm `1/1`, allowlist `404` |
-| SHIP-005 — Commit y push de leyenda | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-005 — Commit y push de leyenda | Alta | Completada | Commit `f120843` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 
