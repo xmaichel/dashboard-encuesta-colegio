@@ -359,25 +359,106 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(hardcoded, [], f"hardcoded percentage in Insights tab: {hardcoded}")
         # Every figure is written by the renderer from model.INSIGHTS.
         for anchor in (
-            "insightsIndex", "ejeAdnPct", "ejeAlertaPct", "ejeDemandaPct", "ejePotencialPct",
-            "paradoja1Reto", "paradoja2Pct", "paradoja3Top", "paradoja4Top",
+            "insightsIndex", "insightsSatisfaccion", "insightsCambio",
+            "ejeAdnPct", "ejeAlertaPct", "ejeDemandaPct", "ejePotencialPct",
+            "paradoja3Top", "paradoja3Pct", "paradoja4Pct", "paradoja2Pct2", "paradoja4Cambio",
         ):
             self.assertIn(f'id="{anchor}"', block, anchor)
             self.assertIn(f"'{anchor}'", runtime, anchor)
         self.assertIn("INSIGHTS: insights", runtime)
         self.assertIn("function renderInsights", runtime)
-        # The tab must declare that it follows the filters.
-        self.assertIn("Vista filtrada", runtime)
+        # The tab states its own limits instead of pretending to explain causes.
+        self.assertIn("Lo que la encuesta no alcanza a decir", block)
 
     def test_roadmap_tab_is_a_static_decision_document(self):
         template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
         block = template.split('id="content-hojaruta"', 1)[1]
         self.assertIn("Documento de Decisión", block)
-        self.assertIn("No depende de los filtros", block)
-        self.assertIn("6. Insights &amp; Conclusiones", block)
         self.assertIn('id="roadmapSampleSize"', block)
         for horizon in ("Horizonte 1", "Horizonte 2", "Horizonte 3"):
             self.assertIn(horizon, block)
+        # Every horizon names who runs it and how the result is checked, so the
+        # plan is a decision document and not a wish list.
+        self.assertGreaterEqual(block.count("Responsable:"), 3)
+        self.assertGreaterEqual(block.count("Evidencia:"), 3)
+        # Execution risks belong in the plan: a roadmap without them is a slogan.
+        self.assertIn("Riesgos de ejecutar este plan", block)
+
+    def test_insights_and_roadmap_ignore_the_demographic_filters(self):
+        # Both tabs describe the whole community. They must read from the global
+        # model, never from the filtered one, and must not advertise a filtered
+        # scope to the reader.
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("function getGlobalModel()", runtime)
+        self.assertIn("globalModel = computeModel(responses())", runtime)
+        self.assertIn("renderInsights(global.INSIGHTS)", runtime)
+        self.assertIn("setText('insightsSampleSize', global.N)", runtime)
+        self.assertIn("setText('roadmapSampleSize', global.N)", runtime)
+        self.assertNotIn("Vista filtrada", runtime)
+        # multiCount() returns `opcion`; reading `label` silently yielded 0%.
+        self.assertIn("item.opcion === CONTRIBUTION[0]", runtime)
+
+    def test_global_tabs_hide_the_filtered_kpi_strip(self):
+        # The KPI strip reacts to the filters. Above a document that always
+        # reports the full cut it was inconsistent, and re-hiding it on every
+        # switch is what made tab 7 jump.
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        self.assertIn('id="kpiStrip"', template)
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("const GLOBAL_TABS = ['conclusiones', 'hojaruta']", runtime)
+        self.assertIn("$('kpiStrip').classList.toggle('hidden', global)", runtime)
+        self.assertIn("$('filterPanel').classList.toggle('hidden', global)", runtime)
+
+    def test_every_helper_called_inside_the_runtime_exists(self):
+        # getAllResponses() was invented while refactoring and only blew up at
+        # runtime, when a filter was applied. Any bare call to a local helper
+        # must resolve to a declaration in the same file.
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # Strip comments and string literals first: prose inside them looks
+        # exactly like a call to a naive regex ("if (", "function (", "urgencia(").
+        # The `[^'\\\n]` classes must exclude the newline, otherwise a single
+        # unterminated quote swallows the rest of the file.
+        code = re.sub(r"/\*.*?\*/", " ", runtime, flags=re.S)
+        code = re.sub(r"(?m)//.*?$", " ", code)
+        code = re.sub(r"'(?:[^'\\\n]|\\.)*'", "''", code)
+        code = re.sub(r'"(?:[^"\\\n]|\\.)*"', '""', code)
+        code = re.sub(r"`(?:[^`\\]|\\.)*`", "``", code)
+        # `function name(` and `function (arg)` differ only by the space.
+        declared = set(re.findall(r"\b(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)", code))
+        keywords = {
+            "if", "for", "while", "switch", "catch", "function", "return", "typeof",
+            "instanceof", "await", "new", "do", "else", "try", "finally", "delete",
+            "void", "in", "of", "throw", "case", "yield", "async", "constructor",
+        }
+        external = {
+            "Chart", "window", "document", "console", "JSON", "Object", "Array", "String",
+            "Number", "Math", "Set", "Map", "Date", "RegExp", "Infinity", "undefined", "parseInt",
+            "parseFloat", "isNaN", "fetch", "setTimeout", "clearTimeout", "encodeURIComponent",
+            "decodeURIComponent", "requestAnimationFrame", "getComputedStyle", "structuredClone",
+            "Boolean",
+            # Chart.js lifecycle hooks are called by the library, not by us.
+            "beforeDraw", "afterDraw", "beforeDatasetsDraw", "afterDatasetsDraw",
+            "beforeLayout", "afterLayout", "beforeFit", "afterFit", "beforeUpdate",
+            "afterUpdate", "beforeTooltipDraw", "afterTooltipDraw", "beforeScaleDraw",
+            "afterScaleDraw", "beforeDatasetDraw", "afterDatasetDraw", "beforeInit",
+            "afterInit", "install", "uninstall", "clear",
+            # Named methods that read as calls: Chart.js option callbacks and
+            # the reader argument of multiCount().
+            "callback", "getter",
+        }
+        called = set(re.findall(r"(?<![.\w$])([A-Za-z_$][\w$]*)\s*\(", code))
+        # Object keys (`name: function`) and destructuring are not calls.
+        called = {name for name in called if not re.search(rf"[\w$]\s*:\s*{re.escape(name)}\s*\(", code)}
+        missing = sorted(called - declared - external - keywords)
+        self.assertEqual(missing, [], f"called but never declared: {missing}")
+
+    def test_html_divs_are_balanced(self):
+        # Three stray </div> once closed mainContent early, which pushed tabs 6
+        # and 7 outside the layout and made them flicker when switching.
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        opened = len(re.findall(r"<div\b", template))
+        closed = len(re.findall(r"</div>", template))
+        self.assertEqual(opened, closed, f"{opened} <div> vs {closed} </div>")
 
     def test_tab_nav_keeps_all_tabs_on_one_row(self):
         template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")

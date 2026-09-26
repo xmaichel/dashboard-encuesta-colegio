@@ -62,10 +62,12 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC14: La pestaña "6. Insights & Conclusiones" existe, aparece en el nav, se activa con `switchTab('conclusiones')` y su contenido es idéntico al aprovado; no altera el layout de las otras cinco.
 - AC15: Las gráficas de torta no lanzan excepciones al dibujarse: los porcentajes aparecen y no se montan entre sí, ni sin filtros ni con filtros.
 - AC16: Las 7 pestañas se muestran en una sola fila a 1440, 1024, 768, 640, 480, 375 y 320 px; en móvil la barra se desplaza lateralmente y la pestaña activa queda visible tras cambiar.
-- AC17: La pestaña 6 (Insights) no contiene ningún porcentaje fijo: todas sus cifras se calculan en vivo y se recalculan con los filtros, indicando si la vista está filtrada.
-- AC18: La pestaña 7 (Hoja de Ruta) es un documento de decisión independiente de los filtros, con la base de lectura que usó.
+- AC17: La pestaña 6 (Insights) no contiene ningún porcentaje fijo: todas sus cifras se calculan en vivo a partir del corte completo, e indica que no sigue los filtros.
+- AC18: La pestaña 7 (Hoja de Ruta) es un documento de decisión independiente de los filtros, con responsable y evidencia por horizonte, riesgos de ejecución y la base de lectura que usó.
 - AC19: Las gráficas de torta y anillo no muestran colisiones ni recortes en ninguna combinación de filtros (verificado en 60 escenarios), los porcentajes se redondean dentro de la porción y se conservan con decimal en la leyenda.
 - AC20: Las 7 gráficas de barras horizontales comparten la tipografía de la Matriz (10px, misma familia) y amplían el margen izquierdo para que las etiquetas largas no se corten; cuando aun así no caben, se abrevian con puntos suspensivos y el texto completo queda en el tooltip.
+- AC21: Las pestañas 6 y 7 son documentos de decisión: no reaccionan a los filtros demográficos, siempre muestran el corte completo y ocultan la fila de KPIs y el panel de filtros, que sí son filtrables.
+- AC22: El HTML mantiene sus `<div>` balanceados; tres cierres sobrantes sacaron antes las pestañas 6 y 7 del contenedor de contenido y las hicieron parpadear al cambiar de pestaña.
 
 ## Constraints
 

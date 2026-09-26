@@ -63,9 +63,9 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 
 - `py_compile`: correcto.
 - `node --check dashboard_runtime.js`: correcto.
-- `python3 -m unittest -v test_dashboard_metrics.py`: 41 pruebas OK.
+- `python3 -m unittest -v test_dashboard_metrics.py`: 45 pruebas OK.
 - QA local y producción: `227` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
-- QA de las 7 pestañas: la 6 muestra cifras en vivo recalculadas por filtro (con etiqueta "Vista filtrada") y la 7 se presenta como documento de decisión sin filtros; el nav ocupa una sola fila a 1440, 768, 375 y 320 px.
+- QA de las 7 pestañas: las 6 y 7 son documentos de decisión sobre el corte completo (227 familias) — no cambian al filtrar, ocultan la fila de KPIs y el panel de filtros, y el `mainContent` no se mueve al cambiar de pestaña. El nav ocupa una sola fila a 1440, 768, 375 y 320 px, sin desbordes.
 - QA de tortas: 60 combinaciones de filtros medidas interceptando el dibujado real — 0 colisiones, 0 recortes, tamaños 11/12/13 px según el espacio del arco y decimales conservados en la leyenda.
 - QA de barras: las 7 gráficas de barras horizontales usan 10px (la tipografía de la Matriz) y ninguna etiqueta se sale de su margen; las que no caben se abrevian con puntos suspensivos y conservan el texto completo en el tooltip.
 - QA de Voz Directa: las cuatro preguntas actualizan el recuadro azul y muestran únicamente sus citas; el recuadro conserva `position: sticky`.

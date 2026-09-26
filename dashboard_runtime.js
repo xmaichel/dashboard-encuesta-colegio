@@ -158,6 +158,17 @@
     return { matrix, groups };
   }
 
+  // The Insights (tab 6) and Roadmap (tab 7) tabs are decision documents, not
+  // data views. They must always describe the whole community, so they read
+  // from a model built on every response and are deliberately NOT rebuilt from
+  // the filters. `computeModel` is reused here on purpose: same formulas, same
+  // denominators, different input set.
+  let globalModel = null;
+  function getGlobalModel() {
+    if (!globalModel) globalModel = computeModel(responses());
+    return globalModel;
+  }
+
   function computeModel(filtered) {
     const N = filtered.length;
     const first = filtered[0] || {};
@@ -246,6 +257,18 @@
       potencial_1: contribution[0] || null,
       potencial_2: contribution[1] || null,
       potencial_3: contribution[2] || null,
+      // The commitment gap: families that offer only passive help (answering
+      // questions) versus families that take on an active role. Useful because
+      // "willingness" and "action" are not the same thing. multiCount() names
+      // the option `opcion`, not `label`.
+      potencial_pasivo_pct: pct(contribution.filter((item) => item.opcion === CONTRIBUTION[0]).reduce((sum, item) => sum + item.count, 0), N),
+      potencial_activo_pct: pct(filtered.filter((record) => validArray(record.aporte).some((option) => option !== CONTRIBUTION[0] && option !== 'Por ahora no me es posible participar')).length, N),
+      potencial_solo_pasivo_pct: pct(filtered.filter((record) => { const options = validArray(record.aporte); return options.length > 0 && options.every((option) => option === CONTRIBUTION[0]); }).length, N),
+      // Share that says the school answers most change requests. The gap
+      // between this and 100% is the credibility problem the families name most.
+      cambio_adequado_pct: pct(change.filter((item) => /mayoría|integral/i.test(item.label)).reduce((sum, item) => sum + item.count, 0), N),
+      // Mean positive satisfaction across the twelve quality dimensions.
+      satisfaccion_media_pct: Math.round((aspects.reduce((sum, item) => sum + item.satisfaccion_positiva_pct, 0) / (aspects.length || 1)) * 10) / 10,
       N,
       has_data: N > 0
     };
@@ -277,11 +300,13 @@
   function escapeHtml(value) { return text(value).replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char])); }
 
   function updateStaticText(model) {
+    const global = getGlobalModel();
     setText('sampleTotal', `${model.N} familias`);
     setText('processedRecords', model.N);
-    setText('insightsSampleSize', model.N);
-    setText('roadmapSampleSize', model.N);
-    renderInsights(model.INSIGHTS);
+    // Tabs 6 and 7 always report the full cut, never the filtered slice.
+    setText('insightsSampleSize', global.N);
+    setText('roadmapSampleSize', global.N);
+    renderInsights(global.INSIGHTS);
     setPct('kpiBienestar', model.KPIS.bienestar_hijos_pct);
     setPct('kpiValores', model.KPIS.valores_familia_pct);
     setPct('kpiPertenencia', model.KPIS.comunidad_leonista_pct);
@@ -296,37 +321,29 @@
     renderRespCambioLegend(model.RESP_CAMBIOS);
   }
 
-  // Renders the live figures of the Insights tab. Every value comes from
-  // model.INSIGHTS, which is recomputed from the filtered responses, so the
-  // tab always describes the same slice of data as the other five tabs.
+  // Renders the live figures of the Insights tab. Every value comes from the
+  // global model, so this tab is a reading of the whole community and stays
+  // identical no matter which demographic filters are active.
   function renderInsights(insights) {
     if (!insights) return;
-    const filtered = state.filters && Object.values(state.filters).some(Boolean);
     setPct('insightsIndex', insights.identity_index_pct);
+    setPct('insightsSatisfaccion', insights.satisfaccion_media_pct);
+    setPct('insightsCambio', insights.cambio_adequado_pct);
     const scope = $('insightsScope');
-    if (scope) {
-      scope.textContent = filtered
-        ? `Vista filtrada · ${insights.N} respuestas`
-        : `Corte completo · ${insights.N} respuestas`;
-    }
+    if (scope) scope.textContent = `Corte completo · ${insights.N} respuestas`;
     setPct('ejeAdnPct', insights.adn_pct);
     setPct('ejeAlertaPct', insights.alerta_pct);
     setText('ejeAlertaTitle', insights.alerta_label);
     setPct('ejeDemandaPct', insights.demanda_pct);
     setText('ejeDemandaTitle', insights.demanda_label);
     setPct('ejePotencialPct', insights.potencial_pct);
-    setText('paradoja1Reto', insights.alerta_label);
-    setText('paradoja2Area', insights.paradoja_tec_label);
-    setPct('paradoja2Pct', insights.paradoja_tec_pct);
-    setText('paradoja2Reto', insights.paradoja_pantallas_label);
-    setText('paradoja2Media', insights.paradoja_pantallas_media);
     setText('paradoja3Top', insights.demanda_label);
     setPct('paradoja3Pct', insights.demanda_pct);
-    setText('paradoja3Second', insights.demanda_2_label);
-    setPct('paradoja3Pct2', insights.demanda_2_pct);
-    setText('paradoja4Top', insights.potencial_1?.opcion || NO_DATA);
-    setText('paradoja4Second', insights.potencial_2?.opcion || NO_DATA);
-    setText('paradoja4Third', insights.potencial_3?.opcion || NO_DATA);
+    setPct('paradoja4Pct', insights.potencial_activo_pct);
+    setPct('paradoja2Pct2', insights.potencial_pasivo_pct);
+    setText('paradoja4Cambio', `${insights.cambio_adequado_pct}% de las familias`);
+    setText('roadAdn', String(insights.adn_pct));
+    setText('roadDemanda', String(insights.demanda_pct));
     setText('roadmapStamp', insights.has_data ? `Actualizado con el ETL · ${insights.N} respuestas` : 'Sin datos');
   }
 
@@ -999,10 +1016,19 @@
     });
   }
 
+  // Tabs 6 and 7 are decision documents, not data views. They hide the
+  // demographic filters and the KPI strip: those react to the filters, and
+  // showing a filtered KPI row above a global document made the tab look
+  // inconsistent and jumped around when switching.
+  const GLOBAL_TABS = ['conclusiones', 'hojaruta'];
+
   function switchTab(tabName) {
     if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad', 'conclusiones', 'hojaruta'].includes(tabName)) return;
     document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.id === `tab-${tabName}`));
     document.querySelectorAll('.tab-content').forEach((content) => content.classList.toggle('hidden', content.id !== `content-${tabName}`));
+    const global = GLOBAL_TABS.includes(tabName);
+    if ($('kpiStrip')) $('kpiStrip').classList.toggle('hidden', global);
+    if ($('filterPanel')) $('filterPanel').classList.toggle('hidden', global);
     // On narrow screens the tab bar scrolls sideways: bring the active tab
     // into view so it is never hidden off-screen after a switch. The deltas
     // come from getBoundingClientRect because offsetLeft is relative to the

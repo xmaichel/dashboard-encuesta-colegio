@@ -66,7 +66,7 @@
     <div class="flex flex-col lg:flex-row gap-6">
       <aside id="filterPanel" class="w-full lg:w-56 lg:flex-shrink-0 space-y-4"><div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4"><div class="flex items-center justify-between"><h3 class="text-sm font-semibold text-slate-800">Filtrar por</h3><button onclick="resetFilters()" class="text-[10px] text-blue-600 hover:underline">Resetear</button></div><div><label for="filterSeccion" class="text-xs font-medium text-slate-600 block mb-1">Sección</label><select id="filterSeccion" onchange="applyFilters()" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5"><option value="">Todo el colegio</option><option value="Infantil">Infantil</option><option value="Prejuvenil">Prejuvenil</option><option value="Juvenil">Juvenil</option></select></div><div><label for="filterAntiguedad" class="text-xs font-medium text-slate-600 block mb-1">Antigüedad</label><select id="filterAntiguedad" onchange="applyFilters()" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5"><option value="">Todas</option><option value="Menos de 2 años">Menos de 2 años</option><option value="Entre 2 y 5 años">Entre 2 y 5 años</option><option value="Entre 6 y 10 años">Entre 6 y 10 años</option><option value="Más de 10 años">Más de 10 años</option></select></div><div><label for="filterCurso" class="text-xs font-medium text-slate-600 block mb-1">Curso</label><select id="filterCurso" onchange="applyFilters()" class="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5"><option value="">Todos</option></select></div><div id="filterBadge" class="hidden bg-blue-50 text-blue-700 text-[10px] px-2 py-1 rounded-full text-center font-medium">Filtros activos: <span id="filterCount">0</span></div></div></aside>
       <div class="flex-1 min-w-0 space-y-8" id="mainContent">
-        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <section id="kpiStrip" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><span class="text-xs font-semibold text-slate-500 uppercase">Bienestar Hijo(a)</span><p id="kpiBienestar" class="text-2xl font-black text-slate-900 mt-2">0%</p><p class="text-xs text-slate-500 mt-1">Feliz, seguro y acompañado</p></div>
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><span class="text-xs font-semibold text-slate-500 uppercase">Valores Familia</span><p id="kpiValores" class="text-2xl font-black text-slate-900 mt-2">0%</p><p class="text-xs text-slate-500 mt-1">Coincidencia de valores</p></div>
           <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm"><span class="text-xs font-semibold text-slate-500 uppercase">Pertenencia</span><p id="kpiPertenencia" class="text-2xl font-black text-slate-900 mt-2">0%</p><p class="text-xs text-slate-500 mt-1">Comunidad Leonista</p></div>
@@ -81,149 +81,130 @@
         <div id="content-calidad" class="tab-content hidden space-y-6"><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-2"><div><h2 class="text-lg font-bold text-slate-900">Evaluación de los 12 Aspectos Formativos y Operativos</h2><p class="text-sm text-slate-500">Distribución porcentual de las valoraciones otorgadas por las familias leonistas</p></div></div><div class="mt-6" style="height:520px"><canvas id="chartAspectos"></canvas></div></div><div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"><div class="p-5 border-b border-slate-200"><h3 class="text-base font-bold text-slate-900">Tabla de Desempeño y Satisfacción Neta</h3><p class="text-xs text-slate-500">Ordenada por porcentaje de satisfacción favorable (Excelente + Bueno)</p></div><div class="overflow-x-auto"><table class="w-full text-left text-xs border-collapse"><thead><tr><th class="py-3 px-4">Aspecto Evaluado</th><th>Excelente</th><th>Bueno</th><th>Aceptable</th><th>Deficiente</th><th>No Conoce</th><th>Satisfacción Total</th><th>Diagnóstico</th></tr></thead><tbody id="tableAspectosBody" class="divide-y divide-slate-200 text-slate-700"></tbody></table></div></div></div>
         <div id="content-matriz" class="tab-content hidden space-y-6"><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-100 gap-2"><div><h2 class="text-lg font-bold text-slate-900">Matriz Estratégica: ¿Qué Debería Hacer el Colegio?</h2><p class="text-sm text-slate-500">Opinión de los padres sobre 13 aspectos clave de la experiencia escolar</p></div></div><div class="mt-6" style="height:520px"><canvas id="chartMatriz"></canvas></div></div><div id="matrixGroups" class="grid grid-cols-1 md:grid-cols-3 gap-6"></div></div>
         <div id="content-retos" class="tab-content hidden space-y-8"><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div class="border-b border-slate-100 pb-3"><h2 class="text-lg font-bold text-slate-900">Urgencia de Retos Actuales</h2><p class="text-xs text-slate-500">Ranking priorizado de 1 (más urgente) a 7 (menos urgente).</p></div><div class="h-80 mt-4"><canvas id="chartRetos"></canvas></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div class="border-b border-slate-100 pb-3"><h2 class="text-lg font-bold text-slate-900">Diferencias de los Estudiantes de Hoy</h2><p class="text-xs text-slate-500">Aspectos en que difieren de generaciones anteriores (Selección hasta 5)</p></div><div class="h-80 mt-4"><canvas id="chartDiferencias"></canvas></div></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><div class="border-b border-slate-100 pb-3"><h2 class="text-lg font-bold text-slate-900">Iniciativas de Mayor Valor para los Estudiantes</h2><p class="text-xs text-slate-500">Programas y proyectos que las familias consideran prioritarios implementar</p></div><div class="h-80 mt-4"><canvas id="chartIniciativas"></canvas></div></div></div>
-        <div id="content-comunidad" class="tab-content hidden space-y-8"><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Aspectos Esenciales de la Identidad</h2><p class="text-xs text-slate-500 mb-4">Lo que debe conservarse como ADN Leonista (Selección hasta 5)</p><div class="h-80"><canvas id="chartIdentidad"></canvas></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Disposición de las Familias a Aportar</h2><p class="text-xs text-slate-500 mb-4">Mecanismos en que los padres desean sumarse a la comunidad</p><div class="h-80"><canvas id="chartAporte"></canvas></div></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Palabras que Hacen Único al Colegio</h2><p class="text-xs text-slate-500 mb-4">Conceptos más repetidos por las familias al describir al CBJML en tres palabras</p><div id="wordCloudContainer" class="flex flex-wrap gap-2.5 items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-100"></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4"><div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3"><div><h2 class="text-lg font-bold text-slate-900">Voz Directa de las Familias</h2><p class="text-xs text-slate-500">Explorador de respuestas abiertas para consulta directiva</p></div><div class="flex flex-wrap gap-2 items-center"><select id="quoteCategory" onchange="onQuoteCategoryChange()" class="w-full sm:w-auto max-w-full text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-700"><option value="cambiar">1. Si pudiera cambiar o mejorar UNA sola cosa...</option><option value="no_perder">2. Qué sería importante NO perder...</option><option value="ensenar">3. Quisiera que el colegio le enseñara a...</option><option value="recomendar">4. Si recomendara el colegio, qué diría...</option></select><input type="text" id="quoteSearch" oninput="onQuoteSearchInput()" placeholder="Buscar palabras..." class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 w-44"></div></div><div id="vozQuestionBar" class="sticky top-0 z-20 bg-gradient-to-r from-blue-800 to-blue-700 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-center"><span id="vozQuestionText">Si pudiera cambiar o mejorar UNA sola cosa del Colegio, ¿Cuál sería y cómo lo haría?</span></div><div id="quotesList" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2"></div></div></div>
-      </div>
+        <div id="content-comunidad" class="tab-content hidden space-y-8"><div class="grid grid-cols-1 lg:grid-cols-2 gap-6"><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Aspectos Esenciales de la Identidad</h2><p class="text-xs text-slate-500 mb-4">Lo que debe conservarse como ADN Leonista (Selección hasta 5)</p><div class="h-80"><canvas id="chartIdentidad"></canvas></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Disposición de las Familias a Aportar</h2><p class="text-xs text-slate-500 mb-4">Mecanismos en que los padres desean sumarse a la comunidad</p><div class="h-80"><canvas id="chartAporte"></canvas></div></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm"><h2 class="text-lg font-bold text-slate-900 mb-1">Palabras que Hacen Único al Colegio</h2><p class="text-xs text-slate-500 mb-4">Conceptos más repetidos por las familias al describir al CBJML en tres palabras</p><div id="wordCloudContainer" class="flex flex-wrap gap-2.5 items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-100"></div></div><div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4"><div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-3"><div><h2 class="text-lg font-bold text-slate-900">Voz Directa de las Familias</h2><p class="text-xs text-slate-500">Explorador de responses abiertas para consulta directiva</p></div><div class="flex flex-wrap gap-2 items-center"><select id="quoteCategory" onchange="onQuoteCategoryChange()" class="w-full sm:w-auto max-w-full text-xs border border-slate-300 rounded-lg px-3 py-1.5 bg-white text-slate-700"><option value="cambiar">1. Si pudiera cambiar o mejorar UNA sola cosa...</option><option value="no_perder">2. Qué sería importante NO perder...</option><option value="ensenar">3. Quisiera que el colegio le enseñara a...</option><option value="recomendar">4. Si recomendara el colegio, qué diría...</option></select><input type="text" id="quoteSearch" oninput="onQuoteSearchInput()" placeholder="Buscar palabras..." class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 w-44"></div></div><div id="vozQuestionBar" class="sticky top-0 z-20 bg-gradient-to-r from-blue-800 to-blue-700 text-white px-5 py-3 rounded-lg shadow-lg text-sm font-medium text-center"><span id="vozQuestionText">Si pudiera cambiar o mejorar UNA sola cosa del Colegio, ¿Cuál sería y cómo lo haría?</span></div><div id="quotesList" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-96 overflow-y-auto pr-2"></div></div></div>
 
-      <!-- TAB 6: INSIGHTS & CONCLUSIONES (datos calculados en vivo) -->
       <div id="content-conclusiones" class="tab-content hidden space-y-8">
-        <!-- Banner de Resumen Ejecutivo -->
-        <div class="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 sm:p-8 rounded-2xl shadow-md space-y-4">
-          <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <span class="bg-blue-500/20 text-blue-200 border border-blue-400/30 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Síntesis Directiva</span>
-              <h2 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-2">Conclusiones Estratégicas</h2>
-              <p class="text-slate-300 text-sm mt-1 max-w-3xl">Lectura integrada de los hallazgos: fortalezas consolidadas, tensiones prioritarias y oportunidades de innovación para el Colegio José Max León.</p>
-            </div>
-            <div class="flex flex-col items-end gap-2">
-              <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-3 rounded-xl border border-white/10 text-center">
-                <div>
-                  <p class="text-xs text-blue-200 font-medium">Índice de Aprobación (Bienestar · Valores · Pertenencia)</p>
-                  <p id="insightsIndex" class="text-2xl font-black text-white">0%</p>
-                </div>
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div>
+            <h2 class="text-2xl font-bold text-slate-900">Insights &amp; Conclusiones</h2>
+            <p class="text-sm text-slate-500 mt-1 max-w-3xl">Qué dice la comunidad cuando se le pregunta con la misma honestidad que los datos. Lectura del corte completo, sin filtros.</p>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-xs font-semibold text-slate-500 uppercase">Muestra</div>
+            <div class="text-2xl font-bold text-blue-700"><span id="insightsSampleSize">0</span> <span class="text-sm font-medium text-slate-500">familias</span></div>
+            <div id="insightsScope" class="text-xs text-slate-400">Corte completo</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Índice de Confianza</div>
+            <div class="text-3xl font-bold text-slate-900"><span id="insightsIndex">0</span>%</div>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Promedio de las tres afirmaciones que más pesan: los hijos se sienten bien, los valores se perciben y la comunidad Leonista se sostiene.</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Satisfacción media</div>
+            <div class="text-3xl font-bold text-slate-900"><span id="insightsSatisfaccion">0</span>%</div>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Promedio de las doce dimensiones de calidad, no de una sola. Es el termómetro del colegio visto desde afuera.</p>
+          </div>
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+            <div class="text-xs font-semibold text-slate-500 uppercase mb-1">Respuesta al cambio</div>
+            <div class="text-3xl font-bold text-amber-600"><span id="insightsCambio">0</span>%</div>
+            <p class="text-xs text-slate-500 mt-2 leading-relaxed">Familias que dicen que el colegio responde a la mayoría de los cambios. El resto señala la brecha más incómoda de esta encuesta.</p>
+          </div>
+        </div>
+
+        <div class="bg-gradient-to-br from-slate-900 to-slate-800 text-white p-6 rounded-xl shadow-sm">
+          <h3 class="text-lg font-bold mb-1">Los cuatro ejes que resumen la encuesta</h3>
+          <p class="text-xs text-slate-300 mb-5">Cuatro lecturas, no cuatro adjetivos. Cada una tiene un número detrás.</p>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div class="flex items-baseline justify-between gap-3 mb-2">
+                <h4 class="font-semibold text-sm">El ADN está a salvo</h4>
+                <span class="text-2xl font-bold text-emerald-400"><span id="ejeAdnPct">0</span>%</span>
               </div>
-              <span id="insightsScope" class="text-[11px] text-blue-200 bg-blue-500/10 border border-blue-400/20 px-2.5 py-1 rounded-full">Corte completo</span>
+              <p class="text-xs text-slate-300 leading-relaxed">Los valores y la excelencia académica son lo que las familias marcan como fácil de perder. Cuando algo se conserva, es esto.</p>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div class="flex items-baseline justify-between gap-3 mb-2">
+                <h4 class="font-semibold text-sm">La alerta más compartida</h4>
+                <span class="text-2xl font-bold text-amber-400"><span id="ejeAlertaPct">0</span>%</span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed">El reto que las familias sitúan primero entre los dos más urgentes: <span id="ejeAlertaTitle" class="text-white font-medium">—</span></p>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div class="flex items-baseline justify-between gap-3 mb-2">
+                <h4 class="font-semibold text-sm">La demanda más clara</h4>
+                <span class="text-2xl font-bold text-sky-400"><span id="ejeDemandaPct">0</span>%</span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed">La iniciativa con más respaldo: <span id="ejeDemandaTitle" class="text-white font-medium">—</span>. Es la petición que se repite sin ambigüedad.</p>
+            </div>
+            <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+              <div class="flex items-baseline justify-between gap-3 mb-2">
+                <h4 class="font-semibold text-sm">El capital social disponible</h4>
+                <span class="text-2xl font-bold text-violet-400"><span id="ejePotencialPct">0</span>%</span>
+              </div>
+              <p class="text-xs text-slate-300 leading-relaxed">Familias que están dispuestas a aportar. El reto no es querer: es convertir esa disposición en roles concretos.</p>
             </div>
           </div>
         </div>
 
-        <!-- Cuatro Grandes Ejes de Diagnóstico (todos en vivo) -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          <div class="bg-white p-5 rounded-xl border-l-4 border-emerald-500 border-t border-r border-b border-slate-200 shadow-sm">
-            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span class="font-bold text-emerald-700 uppercase tracking-wide">1. ADN Innegociable</span>
-              <span id="ejeAdnPct" class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-semibold text-[11px]">0%</span>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-1">Cuatro paradojas que no son paradojas</h3>
+          <p class="text-xs text-slate-500 mb-5">No son contradicciones de la comunidad: son los puntos donde la encuesta muestra por dónde empezar a trabajar.</p>
+          <div class="space-y-4">
+            <div class="border-l-4 border-emerald-500 bg-emerald-50/50 pl-4 py-3">
+              <h4 class="font-semibold text-slate-900 text-sm">1 · La fidelidad es alta, la confianza en el cambio es media</h4>
+              <p class="text-xs text-slate-600 mt-1 leading-relaxed">El colegio está bien valorado en lo que hace, pero solo <span id="paradoja4Cambio" class="font-semibold">—</span> de las familias cree que responde a la mayoría de los cambios. La satisfacción alta convive con una expectativa de fondo: que las cosas se concreticen, no solo se anuncien.</p>
             </div>
-            <h3 class="font-bold text-slate-900 text-sm mb-1.5">Valores y Pensamiento Crítico</h3>
-            <p class="text-xs text-slate-600 leading-relaxed">Las familias reconocen un alineamiento ético casi unánime. El bilingüismo, la argumentación y el cuidado del ser son los pilares que nadie quiere perder.</p>
-          </div>
-
-          <div class="bg-white p-5 rounded-xl border-l-4 border-rose-500 border-t border-r border-b border-slate-200 shadow-sm">
-            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span class="font-bold text-rose-700 uppercase tracking-wide">2. Alerta Crítica</span>
-              <span id="ejeAlertaPct" class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded font-semibold text-[11px]">0%</span>
+            <div class="border-l-4 border-sky-500 bg-sky-50/50 pl-4 py-3">
+              <h4 class="font-semibold text-slate-900 text-sm">2 · Piden formación antes que reconocimiento</h4>
+              <p class="text-xs text-slate-600 mt-1 leading-relaxed"><span id="paradoja3Top" class="font-semibold">—</span> (<span id="paradoja3Pct">0</span>%) lidera las iniciativas, muy por encima de los esquemas de reconocimiento monetario. No piden premiar: piden preparar a sus hijos para un mundo que cambia.</p>
             </div>
-            <h3 id="ejeAlertaTitle" class="font-bold text-slate-900 text-sm mb-1.5">Reto más urgente</h3>
-            <p class="text-xs text-slate-600 leading-relaxed">Es el reto que las familias ubican entre sus dos más urgentes. Muestra el porcentaje que lo coloca en el primer o segundo lugar de urgencia.</p>
-          </div>
-
-          <div class="bg-white p-5 rounded-xl border-l-4 border-amber-500 border-t border-r border-b border-slate-200 shadow-sm">
-            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span class="font-bold text-amber-700 uppercase tracking-wide">3. Demanda Curricular</span>
-              <span id="ejeDemandaPct" class="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-semibold text-[11px]">0%</span>
+            <div class="border-l-4 border-violet-500 bg-violet-50/50 pl-4 py-3">
+              <h4 class="font-semibold text-slate-900 text-sm">3 · Hay disponibilidad, falta un lugar para ponerla</h4>
+              <p class="text-xs text-slate-600 mt-1 leading-relaxed"><span id="paradoja4Pct" class="font-semibold">—</span> de las familias se ofrecen para algo activo, frente a <span id="paradoja2Pct2" class="font-semibold">—</span> que solo ofrecen responder consultas. La comunidad tiene músculo; le falta una puerta de entrada que no exija tanto tiempo.</p>
             </div>
-            <h3 id="ejeDemandaTitle" class="font-bold text-slate-900 text-sm mb-1.5">Iniciativa más valiosa</h3>
-            <p class="text-xs text-slate-600 leading-relaxed">Clamor por herramientas prácticas del mundo real: manejo financiero, liderazgo y oratoria, y tecnología orientada a la creación.</p>
-          </div>
-
-          <div class="bg-white p-5 rounded-xl border-l-4 border-blue-500 border-t border-r border-b border-slate-200 shadow-sm">
-            <div class="flex items-center justify-between text-xs text-slate-500 mb-2">
-              <span class="font-bold text-blue-700 uppercase tracking-wide">4. Potencial Oculto</span>
-              <span id="ejePotencialPct" class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-semibold text-[11px]">0%</span>
-            </div>
-            <h3 class="font-bold text-slate-900 text-sm mb-1.5">Capital Social Familiar</h3>
-            <p class="text-xs text-slate-600 leading-relaxed">Porcentaje de familias dispuestas a vincularse activamente a través de mentorías, talleres, voluntariado o escuelas de padres.</p>
-          </div>
-        </div>
-
-        <!-- Análisis Profundo de Hallazgos y Tensiones -->
-        <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm space-y-6">
-          <div class="border-b border-slate-100 pb-3">
-            <h3 class="text-lg font-bold text-slate-900">Lectura Profunda: Las 4 Paradojas Estratégicas de la Comunidad</h3>
-            <p class="text-xs text-slate-500">Comprensión de los matices que deben guiar las decisiones pedagógicas y de comunicación</p>
-          </div>
-
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200/80 space-y-2">
-              <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
-                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs">1</span>
-                <h4>Excelencia Académica vs. Sobrecarga y Salud Mental</h4>
-              </div>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Existe un orgullo rotundo por el nivel académico, el bilingüismo y la argumentación. Sin embargo, los padres expresan que los estudiantes sufren presión y ansiedad. El llamado no es a reducir el rigor, sino a <strong>reequilibrar la carga de tareas extracurriculares</strong>, enseñar gestión emocional y asegurar que el bienestar psicológico no se sacrifique en pos del desempeño.
-              </p>
-              <p class="text-[11px] text-slate-500 border-t border-slate-200 pt-2">El reto más urgente en esta vista es: <strong id="paradoja1Reto" class="text-slate-700">—</strong></p>
-            </div>
-
-            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200/80 space-y-2">
-              <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
-                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs">2</span>
-                <h4>La Paradoja Tecnológica: Preocupación por Pantallas vs. Demanda de IA</h4>
-              </div>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Mientras el uso de pantallas y redes figura entre los retos más urgentes, una parte relevante de las familias pide transformar o mejorar el uso de tecnología en el colegio. El mensaje es contundente: rechazan el uso disperso y pasivo de dispositivos, pero <strong>demandan una educación tecnológica productiva, ética y creadora</strong>.
-              </p>
-              <p class="text-[11px] text-slate-500 border-t border-slate-200 pt-2"><span id="paradoja2Area" class="text-slate-700">Uso de tecnología</span>: <strong id="paradoja2Pct" class="text-slate-700">0%</strong> pide transformarlo o mejorarlo. Segundo reto más urgente: <strong id="paradoja2Reto" class="text-slate-700">—</strong> (media <span id="paradoja2Media" class="text-slate-700">0</span>).</p>
-            </div>
-
-            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200/80 space-y-2">
-              <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
-                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs">3</span>
-                <h4>Habilidades de Vida: El Currículo que el Mundo Real Exige</h4>
-              </div>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Las familias valoran la teoría académica tradicional, pero exigen que el egresado leonista sepa estructurar un presupuesto, emprender, liderar proyectos reales y desenvolverse con soltura en el ámbito universitario y profesional.
-              </p>
-              <p class="text-[11px] text-slate-500 border-t border-slate-200 pt-2"><strong id="paradoja3Top" class="text-slate-700">—</strong> (<span id="paradoja3Pct" class="text-slate-700">0%</span>) seguido de <strong id="paradoja3Second" class="text-slate-700">—</strong> (<span id="paradoja3Pct2" class="text-slate-700">0%</span>).</p>
-            </div>
-
-            <div class="bg-slate-50 p-5 rounded-xl border border-slate-200/80 space-y-2">
-              <div class="flex items-center gap-2 text-blue-900 font-bold text-sm">
-                <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs">4</span>
-                <h4>El Ecosistema Familiar: Un Motor de Co-creación Disponible</h4>
-              </div>
-              <p class="text-xs text-slate-600 leading-relaxed">
-                Una parte alta de las familias está dispuesta a colaborar activamente. Esto representa un activo de alto impacto: conectar la experiencia profesional de los padres con la orientación vocacional y los proyectos de aula de los estudiantes.
-              </p>
-              <p class="text-[11px] text-slate-500 border-t border-slate-200 pt-2">Principales vías: <strong id="paradoja4Top" class="text-slate-700">—</strong>, <strong id="paradoja4Second" class="text-slate-700">—</strong> y <strong id="paradoja4Third" class="text-slate-700">—</strong>.</p>
+            <div class="border-l-4 border-amber-500 bg-amber-50/50 pl-4 py-3">
+              <h4 class="font-semibold text-slate-900 text-sm">4 · Lo que se conserva y lo que cambia no son las mismas cosas</h4>
+              <p class="text-xs text-slate-600 mt-1 leading-relaxed">Las familias numeran como patrimonio lo que no se ve: valores, excelencia, acompañamiento. Y numeran como cambio lo que sí notan: tecnología, forma de aprender, necesidades socioemocionales. La agenda de transformación ya está escrita por la comunidad; lo pendiente es decidir en qué orden se ejecuta.</p>
             </div>
           </div>
         </div>
 
-        <div class="bg-blue-50 border border-blue-200 text-blue-900 rounded-xl p-4 text-xs leading-relaxed flex items-start gap-3">
-          <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          <p>Todos los números de esta pestaña se calculan en vivo sobre <strong><span id="insightsSampleSize">0</span> respuestas</strong> y se recalculan al aplicar los filtros. La hoja de ruta con las recomendaciones está en la pestaña siguiente, como documento de decisión independiente de los filtros.</p>
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-1">Lo que la encuesta no alcanza a decir</h3>
+          <p class="text-xs text-slate-500 mb-4">Límites honestos de esta lectura. Un tablero que no dice lo que no sabe, no sirve para decidir.</p>
+          <ul class="space-y-2 text-xs text-slate-600">
+            <li class="flex gap-2"><span class="text-slate-300">—</span><span>Las familias respondieron más de una opción donde el formato lo permitía, así que los porcentajes de iniciativas, identidad y diferencias no suman cien: miden apoyo, no reparto.</span></li>
+            <li class="flex gap-2"><span class="text-slate-300">—</span><span>Las citas son texto escrito por familias, no un análisis de su experiencia. Señalan la dirección de la queja, no su magnitud.</span></li>
+            <li class="flex gap-2"><span class="text-slate-300">—</span><span>No se puede afirmar que una característica del colegio cause una respuesta concreta. La encuesta dice qué se percibe, no por qué.</span></li>
+          </ul>
         </div>
       </div>
 
-      <!-- TAB 7: HOJA DE RUTA (documento de decisión, sin filtros) -->
       <div id="content-hojaruta" class="tab-content hidden space-y-8">
         <div class="bg-white p-6 sm:p-8 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <span class="bg-amber-100 text-amber-800 text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wider">Documento de Decisión</span>
-            <h2 class="text-2xl font-extrabold tracking-tight text-slate-900 mt-2">Plan de Acción Recomendado 2026 - 2028</h2>
-            <p class="text-slate-600 text-sm mt-1 max-w-3xl">Propuesta de priorización estratégica en tres horizontes temporales. No depende de los filtros: es una propuesta de gobierno derivada de la lectura global de la encuesta.</p>
+            <h2 class="text-2xl font-extrabold tracking-tight text-slate-900 mt-2">Hoja de Ruta 2026 - 2028</h2>
+            <p class="text-slate-600 text-sm mt-1 max-w-3xl">Propuesta de priorización en tres horizontes, con responsable y métrica de seguimiento. Se sustenta en el corte completo de la encuesta: es un documento de gobierno, no una vista filtrable.</p>
           </div>
           <div class="flex flex-col items-start md:items-end gap-2">
             <div class="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-center">
-              <p class="text-xs text-slate-500 font-medium">Base de la lectura actual</p>
+              <p class="text-xs text-slate-500 font-medium">Base de la lectura</p>
               <p class="text-lg font-black text-slate-900"><span id="roadmapSampleSize">0</span> respuestas</p>
             </div>
             <span id="roadmapStamp" class="text-[11px] text-slate-500"></span>
           </div>
         </div>
 
+        <div class="bg-slate-900 text-white p-6 rounded-xl shadow-sm">
+          <h3 class="text-lg font-bold mb-1">La posición que sostienen los datos</h3>
+          <p class="text-xs text-slate-300 leading-relaxed">Un colegio con alta fidelidad de su comunidad (<span id="roadAdn">0</span>% en valores) y una demanda formativa muy concreta (<span id="roadDemanda">0</span>% pide educación financiera). El riesgo no es perder simpatía: es quedarse en el grupo de familias que perciben que las cosas se anuncian pero no se concretan. Cada frente de esta hoja existe para cerrar esa brecha con hechos verificables.</p>
+        </div>
+
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <!-- Fase 1 -->
           <div class="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/50 flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between mb-2">
@@ -232,17 +213,18 @@
               </div>
               <h4 class="font-bold text-slate-900 text-sm mb-2">Bienestar Digital y Clima Escolar</h4>
               <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside">
-                <li><strong>Política clara de celulares:</strong> Regular el uso de dispositivos en descansos y aulas para combatir la distracción y ciberacoso.</li>
-                <li><strong>Revisión de carga de tareas:</strong> Racionalizar el tiempo de estudio en casa para garantizar descanso y vida familiar.</li>
-                <li><strong>Protocolo anti-bullying visible:</strong> Fortalecer la comunicación de acciones concretas ante conflictos de convivencia.</li>
+                <li><strong>Política clara de celulares:</strong> regular el uso de dispositivos en descansos y aulas, con el criterio publicado a las familias.</li>
+                <li><strong>Revisión de carga de tareas:</strong> racionalizar el trabajo en casa para devolver descanso y vida familiar.</li>
+                <li><strong>Protocolo anti-bullying visible:</strong> comunicar acciones concretas, con seguimiento, ante conflictos de convivencia.</li>
               </ul>
             </div>
-            <div class="pt-3 border-t border-slate-200 text-[11px] text-emerald-800 font-semibold">
-              Meta: Alivio inmediato de la ansiedad y percepción de respuesta oportuna.
+            <div class="pt-3 border-t border-slate-200 space-y-1">
+              <div class="text-[11px] text-emerald-800 font-semibold">Meta: reducir la dispersión y el bullying.</div>
+              <div class="text-[11px] text-slate-500"><strong>Responsable:</strong> Well-Being y coordinaciones académicas</div>
+              <div class="text-[11px] text-slate-500"><strong>Evidencia:</strong> informes de incidentes y actas de la mesa de convivencia</div>
             </div>
           </div>
 
-          <!-- Fase 2 -->
           <div class="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/50 flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between mb-2">
@@ -251,17 +233,18 @@
               </div>
               <h4 class="font-bold text-slate-900 text-sm mb-2">Innovación Curricular y Vida Real</h4>
               <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside">
-                <li><strong>Programa de Educación Financiera:</strong> Diseñar un módulo transversal desde primaria alta hasta grado 11.</li>
-                <li><strong>Adopción de IA y Robótica:</strong> Integrar herramientas de IA generativa con marco éthique y pensamiento crítico.</li>
-                <li><strong>Red de Padres Mentores:</strong> Crear el catálogo de profesionales voluntarios para charlas y mentorías.</li>
+                <li><strong>Programa de Educación Financiera:</strong> módulo transversal desde primaria alta hasta grado 11.</li>
+                <li><strong>Adopción de IA y Robótica:</strong> integrar herramientas con marco ético y pensamiento crítico sobre ellas.</li>
+                <li><strong>Red de Padres Mentores:</strong> catálogo de profesionales voluntarios para charlas y mentorías.</li>
               </ul>
             </div>
-            <div class="pt-3 border-t border-slate-200 text-[11px] text-blue-800 font-semibold">
-              Meta: Responder a las demandas formativas #1 de las familias.
+            <div class="pt-3 border-t border-slate-200 space-y-1">
+              <div class="text-[11px] text-blue-800 font-semibold">Meta: responder a la demanda formativa número uno.</div>
+              <div class="text-[11px] text-slate-500"><strong>Responsable:</strong> rectoría y Dirección Académica</div>
+              <div class="text-[11px] text-slate-500"><strong>Evidencia:</strong> horas de currículo ejecutadas frente a lo planificado</div>
             </div>
           </div>
 
-          <!-- Fase 3 -->
           <div class="border border-slate-200 rounded-xl p-5 space-y-3 bg-slate-50/50 flex flex-col justify-between">
             <div>
               <div class="flex items-center justify-between mb-2">
@@ -270,20 +253,34 @@
               </div>
               <h4 class="font-bold text-slate-900 text-sm mb-2">Consolidación y Proyección Global</h4>
               <ul class="text-xs text-slate-600 space-y-2 list-disc list-inside">
-                <li><strong>Orientación Vocacional Temprana:</strong> Prácticas, convenios universitarios y pasantías desde grado 9º.</li>
-                <li><strong>Modernización de Infraestructura:</strong> Mejoras continuas en espacios deportivos, laboratorios y áreas verdes.</li>
-                <li><strong>Expansión de Intercambios:</strong> Consolidar convenios internacionales accesibles para el estudiantado.</li>
+                <li><strong>Orientación Vocacional Temprana:</strong> prácticas, convenios y pasantías desde grado noveno.</li>
+                <li><strong>Modernización de Infraestructura:</strong> mejoras continuas en laboratorios, deporte y áreas verdes.</li>
+                <li><strong>Expansión de Intercambios:</strong> consolidar convenios internacionales accesibles.</li>
               </ul>
             </div>
-            <div class="pt-3 border-t border-slate-200 text-[11px] text-indigo-800 font-semibold">
-              Meta: Posicionamiento competitivo y liderazgo educativo en la región.
+            <div class="pt-3 border-t border-slate-200 space-y-1">
+              <div class="text-[11px] text-indigo-800 font-semibold">Meta: posicionamiento y liderazgo educativo regional.</div>
+              <div class="text-[11px] text-slate-500"><strong>Responsable:</strong> rectoría y coordinación de Internacionalización</div>
+              <div class="text-[11px] text-slate-500"><strong>Evidencia:</strong> alertas de infraestructura cerradas e intercambios activos</div>
             </div>
           </div>
         </div>
 
-        <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs leading-relaxed">
-          <strong>Cómo usar este documento:</strong> estas recomendaciones son una propuesta de gobierno, no un cálculo automático. Antes de ejecutarlas, contrasta cada frente con la pestaña <strong>6. Insights &amp; Conclusiones</strong> aplicando los filtros que te interesen (sección, antigüedad o curso): los porcentajes de esa pestaña sí responden a la encuesta vigente.
+        <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+          <h3 class="text-lg font-bold text-slate-900 mb-1">Riesgos de ejecutar este plan</h3>
+          <p class="text-xs text-slate-500 mb-4">Lo que puede salir mal si no se cuida, en orden de probabilidad.</p>
+          <ul class="space-y-3 text-xs text-slate-600">
+            <li class="flex gap-2"><span class="mt-0.5 text-amber-500 shrink-0">▲</span><span><strong>La promesa sin evidencia.</strong> Si las políticas se anuncian sin mostrar avances, la encuesta de seguimiento repetirá el hallazgo actual. Cada frente necesita una evidencia pública, por pequeña que sea.</span></li>
+            <li class="flex gap-2"><span class="mt-0.5 text-amber-500 shrink-0">▲</span><span><strong>La política de celulares sin consenso.</strong> Una medida así se vive como castigo si no se explica el porqué ni se construye con las familias. Sin acompañamiento, sube la resistencia y el problema de fondo queda intacto.</span></li>
+            <li class="flex gap-2"><span class="mt-0.5 text-amber-500 shrink-0">▲</span><span><strong>Empezar por los horizontes 2 y 3.</strong> La formación que más piden las familias es la que más visibilidad exige. Sin credibilidad en el corto plazo, la hoja se percibe como otro anuncio y se pierde el efecto de confianza.</span></li>
+            <li class="flex gap-2"><span class="mt-0.5 text-amber-500 shrink-0">▲</span><span><strong>Confundir disponibilidad con participación.</strong> La disposición a aportar es alta, pero el compromiso real se concentra en lo que exige menos tiempo. Abrir canales de bajo costo y alta recurrencia rinde más que pedir_Un esfuerzo grande.</span></li>
+          </ul>
         </div>
+
+        <div class="bg-amber-50 border border-amber-200 text-amber-900 rounded-xl p-4 text-xs leading-relaxed">
+          <strong>Cómo usar este documento:</strong> es una propuesta de gobierno, no un cálculo automático. Los porcentajes que se citan provienen del corte completo de la encuesta y no cambian al aplicar filtros. Para el detalle operativo de cada frente, use las pestañas 2 a 5, que sí responden a los filtros demográficos.
+        </div>
+      </div>
       </div>
     </div>
   </div>
@@ -293,6 +290,6 @@
     var CBJML_SNAPSHOT={"schema_version":2,"responses":[],"questions":{}};
     /* CBJML_DATA_END */
   </script>
-  <script src="/dashboard_runtime.js?v=21"></script>
+  <script src="/dashboard_runtime.js?v=23"></script>
 </body>
 </html>
