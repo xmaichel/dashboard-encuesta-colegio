@@ -453,6 +453,94 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("if (span > room && span > 0)", block)
         self.assertIn("const shift = (room - span) / 2", block)
 
+    def test_all_bar_charts_share_the_matrix_axis_label_size(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # The Matriz chart was the only one declaring 10px; the other five
+        # inherited Chart.js's 12px default and their long labels overflowed.
+        self.assertIn("const AXIS_LABEL_SIZE = 10", runtime)
+        self.assertIn("const AXIS_LABEL_FONT = '\"Helvetica Neue\", Helvetica, Arial, sans-serif'", runtime)
+        self.assertIn("font: { size: AXIS_LABEL_SIZE, family: AXIS_LABEL_FONT }", runtime)
+        # Every horizontal bar chart must use the shared helper. Read from the
+        # upsertChart call up to the start of the next one, so a multi-line
+        # config is not cut in half.
+        starts = []
+        for chart_id in ("chartMatriz", "chartRetos", "chartDiferencias",
+                         "chartIniciativas", "chartIdentidad", "chartAporte"):
+            self.assertIn(f"upsertChart('{chart_id}'", runtime, chart_id)
+            starts.append(runtime.index(f"upsertChart('{chart_id}'"))
+        # The other five share CATEGORY_AXIS, which is built from the same
+        # helper; the Matriz inlines it because it also stacks its ticks.
+        self.assertIn("const CATEGORY_AXIS = { afterFit: wideCategoryAxis(), ticks: smallAxisTicks() }", runtime)
+        for chart_id in ("chartRetos", "chartDiferencias",
+                         "chartIniciativas", "chartIdentidad", "chartAporte"):
+            start = runtime.index(f"upsertChart('{chart_id}'")
+            block = runtime[start:runtime.index("\n", start)]
+            self.assertIn("y: CATEGORY_AXIS", block, chart_id)
+            self.assertIn("indexAxis: 'y'", block, chart_id)
+        # Every axis that declares its own ticks must use the shared helper:
+        # the Matriz and the Aspectos chart (both stacked). The third occurrence
+        # is the helper's own return statement.
+        self.assertEqual(runtime.count("ticks: smallAxisTicks()"), 3, "Matriz + Aspectos + the helper itself")
+        for chart_id in ("chartMatriz", "chartAspectos"):
+            start = runtime.index(f"upsertChart('{chart_id}'")
+            following = [m for m in re.finditer(r"upsertChart\('", runtime) if m.start() > start]
+            end = following[0].start() if following else len(runtime)
+            block = runtime[start:end]
+            self.assertIn("ticks: smallAxisTicks()", block, chart_id)
+            self.assertIn("stacked: true", block, chart_id)
+        # No chart may keep a bare 10px literal any more: that is what let the
+        # six charts drift apart in the first place.
+        self.assertNotIn("ticks: { font: { size: 10 } }", runtime)
+
+    def test_long_category_labels_are_elided_with_full_text_in_tooltip(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # Option labels are full sentences (342px in a 415px card), so they are
+        # shortened to fit the gutter and the full text stays in the tooltip.
+        # It has to run inside ticks.callback: mutating tick.label is useless
+        # because Chart.js re-reads the raw labels on every redraw.
+        self.assertIn("function elideCategoryTicks()", runtime)
+        self.assertIn("callback(value, index)", runtime)
+        self.assertIn("const full = String(chart.data.labels[index] ?? value ?? '')", runtime)
+        self.assertIn("const AXIS_LABEL_MIN_CHARS = 6", runtime)
+        self.assertIn("`${full.slice(0, low)}…`", runtime)
+        # Binary search, not a hardcoded cut.
+        self.assertIn("while (low < high)", runtime)
+        self.assertIn("const mid = Math.ceil((low + high) / 2)", runtime)
+        # The full text must remain reachable through the tooltip.
+        self.assertIn("const CATEGORY_TOOLTIP", runtime)
+        self.assertIn("first.chart.data.labels[first.dataIndex]", runtime)
+        # No dead plugin left behind from the earlier approach.
+        self.assertNotIn("cbjmlCategoryElision", runtime)
+        self.assertNotIn("function elideCategoryLabels", runtime)
+        self.assertNotIn("categoryElisionRegistered", runtime)
+        # The elision ships with the tick defaults so every chart gets it.
+        self.assertIn("...elideCategoryTicks()", runtime)
+
+    def test_category_axis_gutter_is_widened_but_bounded(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("function wideCategoryAxis()", runtime)
+        # afterFit, NOT beforeLayout: beforeLayout is recomputed right after by
+        # Chart.js, so raising axis.width there was a no-op.
+        self.assertIn("afterFit(axis)", runtime)
+        self.assertNotIn("beforeLayout(axis)", runtime)
+        # Bound the gutter: an unbounded one would eat the whole plot.
+        self.assertIn("const AXIS_LABEL_MAX_RATIO = 0.46", runtime)
+        self.assertIn("Math.min(longest + PADDING, canvas.width * AXIS_LABEL_MAX_RATIO)", runtime)
+        # Only ever grow the gutter, never shrink it, or the plot would jump
+        # between redraws as labels get elided and restored.
+        self.assertIn("if (target > (axis.width || 0)) axis.width = target", runtime)
+        # Measure with the real font, not Chart.js's default.
+        self.assertIn("ctx.font = `${AXIS_LABEL_SIZE}px ${AXIS_LABEL_FONT}`", runtime)
+        # crossAlign 'near' on indexAxis 'y' pushed the text off-canvas.
+        self.assertNotIn("crossAlign: 'near'", runtime)
+        # Every horizontal bar chart opts into the widened gutter.
+        self.assertEqual(runtime.count("afterFit: wideCategoryAxis()"), 3, "Matriz, Aspectos and CATEGORY_AXIS")
+        for chart_id in ("chartRetos", "chartDiferencias", "chartIniciativas",
+                         "chartIdentidad", "chartAporte"):
+            start = runtime.index(f"upsertChart('{chart_id}'")
+            block = runtime[start:runtime.index("\n", start)]
+            self.assertIn("y: CATEGORY_AXIS", block, chart_id)
+
     def test_pie_plugin_measures_text_after_setting_the_font(self):
         runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
         # The original bug: measureText ran before ctx.font was set, so every

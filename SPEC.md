@@ -65,6 +65,7 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC17: La pestaña 6 (Insights) no contiene ningún porcentaje fijo: todas sus cifras se calculan en vivo y se recalculan con los filtros, indicando si la vista está filtrada.
 - AC18: La pestaña 7 (Hoja de Ruta) es un documento de decisión independiente de los filtros, con la base de lectura que usó.
 - AC19: Las gráficas de torta y anillo no muestran colisiones ni recortes en ninguna combinación de filtros (verificado en 60 escenarios), los porcentajes se redondean dentro de la porción y se conservan con decimal en la leyenda.
+- AC20: Las 7 gráficas de barras horizontales comparten la tipografía de la Matriz (10px, misma familia) y amplían el margen izquierdo para que las etiquetas largas no se corten; cuando aun así no caben, se abrevian con puntos suspensivos y el texto completo queda en el tooltip.
 
 ## Constraints
 

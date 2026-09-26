@@ -359,6 +359,91 @@
 
   function chartConfig(type, data, options) { return { type, data, options: { responsive: true, maintainAspectRatio: false, ...options } }; }
 
+  // One source of truth for the horizontal-bar category labels. The Matriz
+  // chart was the only one declaring 10px, so every other bar chart silently
+  // inherited Chart.js's 12px default and its long option labels overflowed
+  // the card. This helper is the reference size, not a new constant.
+  const AXIS_LABEL_SIZE = 10;
+  const AXIS_LABEL_FONT = '"Helvetica Neue", Helvetica, Arial, sans-serif';
+  // Share of the canvas the longest label may take before it is elided. Below
+  // 0.5 the bars are starved of room; above it the labels eat the plot.
+  const AXIS_LABEL_MAX_RATIO = 0.46;
+  // A label needs at least 6 characters on screen or it becomes "In…".
+  const AXIS_LABEL_MIN_CHARS = 6;
+  // Breathing room between the label and the axis line.
+  const PADDING = 8;
+
+  function smallAxisTicks() {
+    return {
+      font: { size: AXIS_LABEL_SIZE, family: AXIS_LABEL_FONT },
+      // Elide instead of overflowing: the full text stays in the tooltip.
+      autoSkip: false,
+      ...elideCategoryTicks()
+    };
+  }
+
+  // Horizontal bars whose category labels are long sentences need a wider
+  // gutter than Chart.js reserves by default. Two details make this work:
+  //   - `afterFit` IS the right hook (not beforeLayout): it runs after
+  //     Chart.js has measured the labels, so raising axis.width there makes
+  //     the plot shrink accordingly. Setting it in beforeLayout had no effect
+  //     because Chart.js recomputed the width right afterwards.
+  //   - the floor matters: only grow the gutter, never shrink it, otherwise a
+  //     long label made the bars narrower on one redraw and wider on the next.
+  function wideCategoryAxis() {
+    return {
+      afterFit(axis) {
+        const canvas = axis.chart && axis.chart.canvas;
+        if (!canvas) return;
+        const ctx = axis.ctx || (canvas.getContext && canvas.getContext('2d'));
+        if (!ctx) return;
+        ctx.save();
+        ctx.font = `${AXIS_LABEL_SIZE}px ${AXIS_LABEL_FONT}`;
+        const longest = (axis.ticks || []).reduce(
+          (max, tick) => Math.max(max, ctx.measureText(String(tick.label)).width), 0
+        );
+        ctx.restore();
+        if (!longest) return;
+        // Cap the gutter: an unbounded one would eat the whole plot, leaving
+        // no room for the bars themselves.
+        const target = Math.min(longest + PADDING, canvas.width * AXIS_LABEL_MAX_RATIO);
+        if (target > (axis.width || 0)) axis.width = target;
+      }
+    };
+  }
+
+  // Elides a category label that would not fit the gutter. This has to run
+  // inside `ticks.callback`, not by mutating tick.label: Chart.js re-reads the
+  // raw labels on every redraw and overwrites anything written before it.
+  function elideCategoryTicks() {
+    return {
+      callback(value, index) {
+        const chart = this.chart;
+        const axis = this;
+        const full = String(chart.data.labels[index] ?? value ?? '');
+        const ctx = chart.ctx;
+        if (!full || !ctx || !axis.width) return full;
+        const room = axis.width - PADDING;
+        ctx.save();
+        ctx.font = `${AXIS_LABEL_SIZE}px ${AXIS_LABEL_FONT}`;
+        if (ctx.measureText(full).width <= room) {
+          ctx.restore();
+          return full;
+        }
+        // Binary search for the longest prefix that still fits.
+        let low = AXIS_LABEL_MIN_CHARS;
+        let high = full.length;
+        while (low < high) {
+          const mid = Math.ceil((low + high) / 2);
+          if (ctx.measureText(`${full.slice(0, mid)}…`).width <= room) low = mid;
+          else high = mid - 1;
+        }
+        ctx.restore();
+        return `${full.slice(0, low)}…`;
+      }
+    };
+  }
+
   // Percentages are shown in two places on purpose: inside each pie/doughnut
   // slice when it is wide enough to read, and outside the pie with a leader
   // line when it is too small. The legend always carries every percentage.
@@ -436,6 +521,8 @@
   // after its use would throw on the very first paint.
   const roundText = (share) => `${Math.round(share)}%`;
 
+  // Eliding axis labels has to happen after the axis has been laid out and
+  // before anything is painted, on every draw (resize, filter change, hover).
   function registerPercentageLabels() {
     if (percentageLabelsRegistered || typeof Chart === 'undefined') return;
     Chart.register({
@@ -725,19 +812,31 @@
       { label: 'Bueno (%)', data: aspects.map((item) => item.Bueno.pct), backgroundColor: '#3b82f6' },
       { label: 'Aceptable (%)', data: aspects.map((item) => item.Aceptable.pct), backgroundColor: '#fbbf24' },
       { label: 'Deficiente (%)', data: aspects.map((item) => item[`Deficiente`].pct), backgroundColor: '#ef4444' }
-    ] }, { indexAxis: 'y', scales: { x: { stacked: true, max: 100 }, y: { stacked: true, ticks: { font: { size: 10 } } } } }));
+    ] }, { indexAxis: 'y', scales: { x: { stacked: true, max: 100 }, y: { stacked: true, afterFit: wideCategoryAxis(), ticks: smallAxisTicks() } } }));
     const matrix = model.MATRIZ;
     upsertChart('chartMatriz', chartConfig('bar', { labels: matrix.map((item) => item.area), datasets: [
       { label: 'Transformar (%)', data: matrix.map((item) => item.Transformar.pct), backgroundColor: '#f59e0b' },
       { label: 'Mejorar (%)', data: matrix.map((item) => item.Mejorar.pct), backgroundColor: '#3b82f6' },
       { label: 'Mantener (%)', data: matrix.map((item) => item.Mantener.pct), backgroundColor: '#10b981' },
       { label: 'No Prioritario (%)', data: matrix.map((item) => item['No prioritario'].pct), backgroundColor: '#cbd5e1' }
-    ] }, { indexAxis: 'y', scales: { x: { stacked: true, max: 100 }, y: { stacked: true, ticks: { font: { size: 10 } } } } }));
-    upsertChart('chartRetos', chartConfig('bar', { labels: model.retos.map((item) => item.reto), datasets: [{ label: 'Media de urgencia (1 = más urgente)', data: model.retos.map((item) => item.media_urgencia), backgroundColor: '#dc2626' }] }, { indexAxis: 'y', scales: { x: { min: 1, max: 7 } }, plugins: { tooltip: { callbacks: { afterBody: (items) => { const item = model.retos[items[0]?.dataIndex]; return item ? `% en prioridad 1 y 2: ${item.top2_pct}%` : ''; } } } } }));
-    upsertChart('chartDiferencias', chartConfig('bar', { labels: model.DIFERENCIAS.map((item) => item.opcion), datasets: [{ label: '% Familias', data: model.DIFERENCIAS.map((item) => item.pct), backgroundColor: '#4f46e5' }] }, { indexAxis: 'y', plugins: { legend: { display: false } } }));
-    upsertChart('chartIniciativas', chartConfig('bar', { labels: model.INICIATIVAS.map((item) => item.opcion), datasets: [{ label: '% de Respaldos', data: model.INICIATIVAS.map((item) => item.pct), backgroundColor: '#0284c7' }] }, { indexAxis: 'y', plugins: { legend: { display: false } } }));
-    upsertChart('chartIdentidad', chartConfig('bar', { labels: model.IDENTITY.map((item) => item.opcion), datasets: [{ label: '% Menciones', data: model.IDENTITY.map((item) => item.pct), backgroundColor: '#0d9488' }] }, { indexAxis: 'y', plugins: { legend: { display: false } } }));
-    upsertChart('chartAporte', chartConfig('bar', { labels: model.APORTE.map((item) => item.opcion), datasets: [{ label: '% dispuestas a aportar', data: model.APORTE.map((item) => item.pct), backgroundColor: '#d97706' }] }, { indexAxis: 'y', plugins: { legend: { display: false } } }));
+    ] }, { indexAxis: 'y', scales: { x: { stacked: true, max: 100 }, y: { stacked: true, afterFit: wideCategoryAxis(), ticks: smallAxisTicks() } } }));
+    const CATEGORY_AXIS = { afterFit: wideCategoryAxis(), ticks: smallAxisTicks() };
+    const CATEGORY_TOOLTIP = {
+      callbacks: {
+        // An elided axis label must still be readable on demand, so the title
+        // shows the full text rather than the shortened one.
+        title: (items) => {
+          const first = items[0];
+          const label = first && first.chart.data.labels[first.dataIndex];
+          return label === undefined ? undefined : String(label);
+        }
+      }
+    };
+    upsertChart('chartRetos', chartConfig('bar', { labels: model.retos.map((item) => item.reto), datasets: [{ label: 'Media de urgencia (1 = más urgente)', data: model.retos.map((item) => item.media_urgencia), backgroundColor: '#dc2626' }] }, { indexAxis: 'y', scales: { x: { min: 1, max: 7 }, y: CATEGORY_AXIS }, plugins: { tooltip: { callbacks: { ...CATEGORY_TOOLTIP.callbacks, afterBody: (items) => { const item = model.retos[items[0]?.dataIndex]; return item ? `% en prioridad 1 y 2: ${item.top2_pct}%` : ''; } } } } }));
+    upsertChart('chartDiferencias', chartConfig('bar', { labels: model.DIFERENCIAS.map((item) => item.opcion), datasets: [{ label: '% Familias', data: model.DIFERENCIAS.map((item) => item.pct), backgroundColor: '#4f46e5' }] }, { indexAxis: 'y', scales: { y: CATEGORY_AXIS }, plugins: { legend: { display: false }, tooltip: CATEGORY_TOOLTIP } }));
+    upsertChart('chartIniciativas', chartConfig('bar', { labels: model.INICIATIVAS.map((item) => item.opcion), datasets: [{ label: '% de Respaldos', data: model.INICIATIVAS.map((item) => item.pct), backgroundColor: '#0284c7' }] }, { indexAxis: 'y', scales: { y: CATEGORY_AXIS }, plugins: { legend: { display: false }, tooltip: CATEGORY_TOOLTIP } }));
+    upsertChart('chartIdentidad', chartConfig('bar', { labels: model.IDENTITY.map((item) => item.opcion), datasets: [{ label: '% Menciones', data: model.IDENTITY.map((item) => item.pct), backgroundColor: '#0d9488' }] }, { indexAxis: 'y', scales: { y: CATEGORY_AXIS }, plugins: { legend: { display: false }, tooltip: CATEGORY_TOOLTIP } }));
+    upsertChart('chartAporte', chartConfig('bar', { labels: model.APORTE.map((item) => item.opcion), datasets: [{ label: '% dispuestas a aportar', data: model.APORTE.map((item) => item.pct), backgroundColor: '#d97706' }] }, { indexAxis: 'y', scales: { y: CATEGORY_AXIS }, plugins: { legend: { display: false }, tooltip: CATEGORY_TOOLTIP } }));
   }
 
   function renderAspectTable(model) {

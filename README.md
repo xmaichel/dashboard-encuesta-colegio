@@ -63,12 +63,13 @@ El snapshot no incluye timestamp, correo ni columnas personales. Los textos libr
 
 - `py_compile`: correcto.
 - `node --check dashboard_runtime.js`: correcto.
-- `python3 -m unittest -v test_dashboard_metrics.py`: 38 pruebas OK.
+- `python3 -m unittest -v test_dashboard_metrics.py`: 41 pruebas OK.
 - QA local y producción: `227` familias tras ETL en vivo; filtros/persistencia, pestañas, Matriz deduplicada y pregunta sticky única.
 - QA de las 7 pestañas: la 6 muestra cifras en vivo recalculadas por filtro (con etiqueta "Vista filtrada") y la 7 se presenta como documento de decisión sin filtros; el nav ocupa una sola fila a 1440, 768, 375 y 320 px.
 - QA de tortas: 60 combinaciones de filtros medidas interceptando el dibujado real — 0 colisiones, 0 recortes, tamaños 11/12/13 px según el espacio del arco y decimales conservados en la leyenda.
+- QA de barras: las 7 gráficas de barras horizontales usan 10px (la tipografía de la Matriz) y ninguna etiqueta se sale de su margen; las que no caben se abrevian con puntos suspensivos y conservan el texto completo en el tooltip.
 - QA de Voz Directa: las cuatro preguntas actualizan el recuadro azul y muestran únicamente sus citas; el recuadro conserva `position: sticky`.
 - QA de Iniciativa Top: sin filtros muestra `Educación financiera` (la más apoyada) y con filtro de curso cambia a la más apoyada de ese grupo.
 - QA responsive: sin overflow horizontal a 375 px ni 320 px; logo con fallback.
-- `dashboard_runtime.js?v=18` desplegado; porcentajes numéricos redondeados dentro de las porciones, contraste automático según el color, etiquetas externas cuando el arco no tiene espacio, leyenda única con color en "Respuesta al Cambio", siete pestañas en una sola fila con la 6 en vivo y la 7 como documento de decisión; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
+- `dashboard_runtime.js?v=21` desplegado; porcentajes numéricos redondeados dentro de las porciones, contraste automático según el color, etiquetas externas cuando el arco no tiene espacio, leyenda única con color en "Respuesta al Cambio", siete pestañas en una sola fila con la 6 en vivo y la 7 como documento de decisión, y las 7 gráficas de barras con la tipografía de la Matriz y etiquetas abreviadas cuando no caben; allowlist pública verificada (snapshot, ETL, servidor, `.env` y `data_*.js` responden `404`).
 - Commit `6a4bea0` publicado en `origin/main`.

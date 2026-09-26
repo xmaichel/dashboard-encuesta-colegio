@@ -35,7 +35,8 @@
 | DEPLOY-007 — Rebuild del nav | Crítica | Completada | `dashboard_runtime.js?v=18`, Swarm `1/1`, allowlist `404` |
 | TASK-012 — Validar y mejorar los porcentajes de las tortas | Alta | Completada | 0 colisiones y 0 recortes en 60 escenarios; runtime `v18` desplegado |
 | TASK-013 — Separar Insights (vivo) de Hoja de Ruta (decisión) | Crítica | Completada | Pestañas 6 y 7 separadas; cifras en vivo con recálculo por filtro |
-| SHIP-008 — Commit y push de pestañas 6/7 y tortas | Alta | Completada | Commit `6a4bea0` publicado en `origin/main`; sin datos crudos en HEAD |
+| TASK-014 — Unificar la tipografía de las etiquetas de las barras | Alta | Completada | 7 gráficas a 10px con margen ampliado y elipsis; runtime `v21` desplegado |
+| SHIP-009 — Commit y push de las etiquetas de barras | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 
