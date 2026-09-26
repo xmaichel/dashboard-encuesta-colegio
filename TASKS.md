@@ -33,7 +33,7 @@
 | TASK-011 — Las 6 pestañas en una sola fila | Crítica | Completada | `#tabNav` con 6 columnas en escritorio y scroll lateral en móvil con auto-scroll |
 | QA-007 — Regresión del nav | Alta | Completada | 27 pruebas Python, 7 anchos verificados, evidencia visual escritorio y móvil |
 | DEPLOY-007 — Rebuild del nav | Crítica | Completada | `dashboard_runtime.js?v=12`, Swarm `1/1`, allowlist `404` |
-| SHIP-007 — Commit y push del nav | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-007 — Commit y push del nav | Alta | Completada | Commit `b5a80e2` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 
