@@ -36,7 +36,7 @@
 | TASK-012 — Validar y mejorar los porcentajes de las tortas | Alta | Completada | 0 colisiones y 0 recortes en 60 escenarios; runtime `v18` desplegado |
 | TASK-013 — Separar Insights (vivo) de Hoja de Ruta (decisión) | Crítica | Completada | Pestañas 6 y 7 separadas; cifras en vivo con recálculo por filtro |
 | TASK-014 — Unificar la tipografía de las etiquetas de las barras | Alta | Completada | 7 gráficas a 10px con margen ampliado y elipsis; runtime `v21` desplegado |
-| SHIP-009 — Commit y push de las etiquetas de barras | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
+| SHIP-009 — Commit y push de las etiquetas de barras | Alta | Completada | Commit `6e3df2d` publicado en `origin/main`; sin datos crudos en HEAD |
 
 ## Orden de cierre
 
