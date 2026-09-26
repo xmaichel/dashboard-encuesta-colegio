@@ -733,6 +733,20 @@
     if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad', 'conclusiones'].includes(tabName)) return;
     document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.id === `tab-${tabName}`));
     document.querySelectorAll('.tab-content').forEach((content) => content.classList.toggle('hidden', content.id !== `content-${tabName}`));
+    // On narrow screens the tab bar scrolls sideways: bring the active tab
+    // into view so it is never hidden off-screen after a switch. The deltas
+    // come from getBoundingClientRect because offsetLeft is relative to the
+    // nearest positioned ancestor, not to the scrolling nav.
+    const nav = $('tabNav');
+    const active = $(`tab-${tabName}`);
+    if (nav && active && nav.scrollWidth > nav.clientWidth + 1) {
+      const navBox = nav.getBoundingClientRect();
+      const activeBox = active.getBoundingClientRect();
+      const current = nav.scrollLeft;
+      const delta = (activeBox.left - navBox.left) - (nav.clientWidth - activeBox.width) / 2;
+      const target = Math.max(0, Math.min(current + delta, nav.scrollWidth - nav.clientWidth));
+      nav.scrollLeft = target;
+    }
     resizeCharts();
     state.activeTab = tabName; saveState();
   }

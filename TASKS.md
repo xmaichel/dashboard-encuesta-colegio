@@ -30,6 +30,10 @@
 | QA-006 — Regresión de tortas y pestaña 6 | Alta | Completada | 26 pruebas Python, 10 porcentajes sin colisión, 6 pestañas, móvil 375/320 |
 | DEPLOY-006 — Rebuild con pestaña 6 | Crítica | Completada | `dashboard_runtime.js?v=9`, Swarm `1/1`, allowlist `404`, ETL en vivo |
 | SHIP-006 — Commit y push de pestaña 6 | Alta | Completada | Commit `e889e3f` publicado en `origin/main`; sin datos crudos en HEAD |
+| TASK-011 — Las 6 pestañas en una sola fila | Crítica | Completada | `#tabNav` con 6 columnas en escritorio y scroll lateral en móvil con auto-scroll |
+| QA-007 — Regresión del nav | Alta | Completada | 27 pruebas Python, 7 anchos verificados, evidencia visual escritorio y móvil |
+| DEPLOY-007 — Rebuild del nav | Crítica | Completada | `dashboard_runtime.js?v=12`, Swarm `1/1`, allowlist `404` |
+| SHIP-007 — Commit y push del nav | Alta | Pendiente | Revisar diff y publicar sin reescribir historial |
 
 ## Orden de cierre
 

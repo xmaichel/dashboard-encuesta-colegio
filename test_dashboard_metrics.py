@@ -348,6 +348,23 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("insightsSampleSize", template)
         self.assertIn("77 respuestas", template)
 
+    def test_tab_nav_keeps_all_six_tabs_on_one_row(self):
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        # A fixed column count with more buttons than columns wraps the last tab
+        # onto a second row: the bar changes height and pushes content down.
+        self.assertNotIn("grid-cols-5", template.split("</nav>")[0])
+        # Six tabs need a responsive container: grid at >=sm, scroll at <sm.
+        self.assertIn('id="tabNav"', template)
+        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr))", template)
+        self.assertIn("overflow-x: auto", template)
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # The active tab must be scrolled into view when the bar scrolls.
+        self.assertIn("nav.scrollLeft = target", runtime)
+        self.assertIn("nav.scrollWidth > nav.clientWidth", runtime)
+        # offsetLeft is relative to the nearest positioned ancestor, so the
+        # scroll math must use getBoundingClientRect deltas.
+        self.assertNotIn("active.offsetLeft", runtime)
+
     def test_html_snapshot_contains_no_pii_columns(self):
         headers = self_headers()
         headers[0] = "Marca temporal"

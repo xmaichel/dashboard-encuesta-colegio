@@ -12,6 +12,15 @@
     .tab-btn { min-width: 0; width: 100%; overflow-wrap: anywhere; }
     .tab-btn > div { overflow-wrap: anywhere; }
     .tab-btn.active { border-bottom: 2px solid #1d4ed8; color: #1d4ed8; font-weight: 600; }
+    /* Six tabs never fit one mobile row, so below sm they scroll sideways
+       instead of wrapping: a wrapped tab bar changes height and pushes the
+       content down on every switch. */
+    #tabNav { display: flex; gap: 0.25rem; overflow-x: auto; scrollbar-width: none; }
+    #tabNav::-webkit-scrollbar { display: none; }
+    #tabNav > .tab-btn { flex: 1 0 auto; }
+    @media (min-width: 640px) { #tabNav { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); overflow-x: visible; } #tabNav > .tab-btn { flex: initial; } }
+    #tabNav { scroll-snap-type: x proximity; }
+    #tabNav > .tab-btn { scroll-snap-align: center; }
     #mainContent { min-width: 0; }
     #mainContent, #mainContent .tab-content, #mainContent .tab-content > div { min-width: 0; }
     #mainContent canvas { max-width: 100%; }
@@ -41,7 +50,7 @@
       </div>
     </div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <nav class="grid grid-cols-5 gap-1 text-xs font-medium text-slate-600 border-t border-slate-100">
+      <nav id="tabNav" class="text-xs font-medium text-slate-600 border-t border-slate-100">
         <button onclick="switchTab('resumen')" id="tab-resumen" class="tab-btn active py-2 px-1 text-center" aria-label="1. Resumen Ejecutivo &amp; KPIs"><div class="font-semibold">1. Resumen Ejecutivo<br>&amp; KPIs</div></button>
         <button onclick="switchTab('calidad')" id="tab-calidad" class="tab-btn py-2 px-1 text-center" aria-label="2. Calidad de Aspectos (12 Dimensiones)"><div class="font-semibold">2. Calidad de Aspectos<br>(12 Dimensiones)</div></button>
         <button onclick="switchTab('matriz')" id="tab-matriz" class="tab-btn py-2 px-1 text-center" aria-label="3. Matriz de Acción (Mantener / Transformar)"><div class="font-semibold">3. Matriz de Acción<br>(Mantener / Transformar)</div></button>
@@ -265,6 +274,6 @@
     var CBJML_SNAPSHOT={"schema_version":2,"responses":[],"questions":{}};
     /* CBJML_DATA_END */
   </script>
-  <script src="/dashboard_runtime.js?v=9"></script>
+  <script src="/dashboard_runtime.js?v=12"></script>
 </body>
 </html>
