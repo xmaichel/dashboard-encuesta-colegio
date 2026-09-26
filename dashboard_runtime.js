@@ -214,6 +214,41 @@
       reto_urgente_2: urgent[1]?.reto || NO_DATA,
       reto_urgente_2_pct: urgent[1]?.top2_pct || 0
     };
+    // Live figures for the Insights tab. Every number here is derived from the
+    // current `filtered` set, so the tab reacts to the filters like the rest.
+    // The previous version of this tab hardcoded percentages from an old 77-row
+    // cut while the dashboard was showing 226 rows: that looked live and was not.
+    const identityIndex = Math.round(((kpis.bienestar_hijos_pct + kpis.valores_familia_pct + kpis.comunidad_leonista_pct) / 3) * 10) / 10;
+    const topInitiative = initiatives[0] || null;
+    const techTransform = matrixData.matrix.find((row) => /tecnolog|digital|pantalla|dispositivo/i.test(row.area)) || null;
+    const techPct = techTransform ? (techTransform.pcts.Transformar || 0) + (techTransform.pcts.Mejorar || 0) : 0;
+    const topTwoInitiatives = initiatives.slice(0, 2);
+    const insights = {
+      identity_index_pct: identityIndex,
+      // Share of families that want to keep the school's core values.
+      adn_pct: kpis.valores_familia_pct,
+      // Share ranking the leading risk among their two most urgent challenges.
+      alerta_pct: kpis.reto_urgente_1_pct,
+      alerta_label: kpis.reto_urgente_1,
+      // Most-supported initiative plus the runner-up, both live.
+      demanda_pct: topInitiative ? topInitiative.pct : 0,
+      demanda_label: topInitiative ? topInitiative.opcion : NO_DATA,
+      demanda_2_pct: topTwoInitiatives[1] ? topTwoInitiatives[1].pct : 0,
+      demanda_2_label: topTwoInitiatives[1] ? topTwoInitiatives[1].opcion : NO_DATA,
+      // Share asking to transform or improve technology use.
+      paradoja_tec_pct: techPct,
+      paradoja_tec_label: techTransform ? techTransform.area : NO_DATA,
+      // Reto ranked #2 by urgency.
+      paradoja_pantallas_media: urgent[1] ? urgent[1].media_urgencia : 0,
+      paradoja_pantallas_label: kpis.reto_urgente_2,
+      // Willingness to contribute and the two most chosen ways.
+      potencial_pct: kpis.disposicion_aporte_pct,
+      potencial_1: contribution[0] || null,
+      potencial_2: contribution[1] || null,
+      potencial_3: contribution[2] || null,
+      N,
+      has_data: N > 0
+    };
     const quotes = filtered.filter((record) => Object.values(record.quotes || {}).some(Boolean)).map((record) => ({
       id: record.id, cambiar: record.quotes?.cambiar || '', no_perder: record.quotes?.no_perder || '',
       ensenar: record.quotes?.ensenar || '', recomendar: record.quotes?.recomendar || '',
@@ -223,7 +258,7 @@
       N, aspects, afirmaciones, retos, MATRIZ: matrixData.matrix, matrix_groups: matrixData.groups,
       IDENTITY: identity, DIFERENCIAS: differences, INICIATIVAS: initiatives, APORTE: contribution,
       RESP_CAMBIOS: change, DEMO: { antiguedad, participacion: participation, secciones: SECTIONS.map((section) => ({ label: section, count: filtered.filter((record) => validArray(record.secciones).includes(section)).length, pct: pct(filtered.filter((record) => validArray(record.secciones).includes(section)).length, N) })) },
-      TOP_WORDS: topWords, QUOTES: quotes, KPIS: kpis
+      TOP_WORDS: topWords, QUOTES: quotes, KPIS: kpis, INSIGHTS: insights
     };
   }
 
@@ -245,6 +280,8 @@
     setText('sampleTotal', `${model.N} familias`);
     setText('processedRecords', model.N);
     setText('insightsSampleSize', model.N);
+    setText('roadmapSampleSize', model.N);
+    renderInsights(model.INSIGHTS);
     setPct('kpiBienestar', model.KPIS.bienestar_hijos_pct);
     setPct('kpiValores', model.KPIS.valores_familia_pct);
     setPct('kpiPertenencia', model.KPIS.comunidad_leonista_pct);
@@ -257,6 +294,40 @@
     setText('narrativeRetos', `${model.KPIS.reto_urgente_1} (${model.KPIS.reto_urgente_1_pct}%) y ${model.KPIS.reto_urgente_2} (${model.KPIS.reto_urgente_2_pct}%) lideran la urgencia generacional.`);
     setText('narrativeAccion', `El ${model.KPIS.iniciativa_top_1_pct}% prioriza ${model.KPIS.iniciativa_top_1}; la disposición a aportar es de ${model.KPIS.disposicion_aporte_pct}%.`);
     renderRespCambioLegend(model.RESP_CAMBIOS);
+  }
+
+  // Renders the live figures of the Insights tab. Every value comes from
+  // model.INSIGHTS, which is recomputed from the filtered responses, so the
+  // tab always describes the same slice of data as the other five tabs.
+  function renderInsights(insights) {
+    if (!insights) return;
+    const filtered = state.filters && Object.values(state.filters).some(Boolean);
+    setPct('insightsIndex', insights.identity_index_pct);
+    const scope = $('insightsScope');
+    if (scope) {
+      scope.textContent = filtered
+        ? `Vista filtrada · ${insights.N} respuestas`
+        : `Corte completo · ${insights.N} respuestas`;
+    }
+    setPct('ejeAdnPct', insights.adn_pct);
+    setPct('ejeAlertaPct', insights.alerta_pct);
+    setText('ejeAlertaTitle', insights.alerta_label);
+    setPct('ejeDemandaPct', insights.demanda_pct);
+    setText('ejeDemandaTitle', insights.demanda_label);
+    setPct('ejePotencialPct', insights.potencial_pct);
+    setText('paradoja1Reto', insights.alerta_label);
+    setText('paradoja2Area', insights.paradoja_tec_label);
+    setPct('paradoja2Pct', insights.paradoja_tec_pct);
+    setText('paradoja2Reto', insights.paradoja_pantallas_label);
+    setText('paradoja2Media', insights.paradoja_pantallas_media);
+    setText('paradoja3Top', insights.demanda_label);
+    setPct('paradoja3Pct', insights.demanda_pct);
+    setText('paradoja3Second', insights.demanda_2_label);
+    setPct('paradoja3Pct2', insights.demanda_2_pct);
+    setText('paradoja4Top', insights.potencial_1?.opcion || NO_DATA);
+    setText('paradoja4Second', insights.potencial_2?.opcion || NO_DATA);
+    setText('paradoja4Third', insights.potencial_3?.opcion || NO_DATA);
+    setText('roadmapStamp', insights.has_data ? `Actualizado con el ETL · ${insights.N} respuestas` : 'Sin datos');
   }
 
   // Chart.js truncated this legend: the option labels are long sentences and the
@@ -301,6 +372,14 @@
   // Cap the leader-line labels: past this many tiny slices the lines cross so
   // much they read worse than the legend, so the rest stay legend-only.
   const MAX_OUTSIDE = 6;
+  // Inline label sizes. The largest one that provably fits inside the arc is
+  // used, so a big slice reads at a glance without bleeding into its neighbour.
+  const SIZE_LARGE = 13;
+  const SIZE_MID = 12;
+  const SIZE_SMALL = 11;
+  // Breathing room required between a label edge and the arc boundary.
+  const INLINE_PAD = 3;
+  const LABEL_FONT = 'Inter, system-ui, sans-serif';
   let percentageLabelsRegistered = false;
 
   function shareOf(counts) {
@@ -334,6 +413,29 @@
     };
   }
 
+  // Relative luminance check, so a label picks black or white to match the
+  // slice it sits on. Without it, white text on the amber/orange slices reads
+  // as a smudge no matter how thick the halo is.
+  function isDarkColor(color) {
+    if (typeof color !== 'string' || color[0] !== '#') return true;
+    const hex = color.length === 4
+      ? color.slice(1).split('').map((c) => c + c).join('')
+      : color.slice(1, 7);
+    if (hex.length < 6) return true;
+    const channels = [0, 2, 4].map((i) => {
+      const channel = parseInt(hex.slice(i, i + 2), 16) / 255;
+      return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+    return luminance < 0.45;
+  }
+
+  // Rounded inside: a label that reads "8.0%" on a slice of 8% is noise. The
+  // decimal is kept in the legend and tooltip, where there is room. Declared
+  // here, not inside the draw hook: the hook is a closure and a const declared
+  // after its use would throw on the very first paint.
+  const roundText = (share) => `${Math.round(share)}%`;
+
   function registerPercentageLabels() {
     if (percentageLabelsRegistered || typeof Chart === 'undefined') return;
     Chart.register({
@@ -346,6 +448,7 @@
         const shares = shareOf(dataset.data);
         const context = chart.ctx;
         const arcs = chart.getDatasetMeta(0).data || [];
+        const palette = Array.isArray(dataset.backgroundColor) ? dataset.backgroundColor : [];
         const area = chart.chartArea;
         // Out-of-arc labels need horizontal room, otherwise they get clipped.
         const roomy = !!area && area.right - area.left > 40;
@@ -359,7 +462,56 @@
           if (share >= MIN_SHARE) {
             const position = arc.tooltipPosition();
             if (!position || !Number.isFinite(position.x) || !Number.isFinite(position.y)) return;
-            labels.push({ label, x: position.x, y: position.y, w: context.measureText(label).width, outside: false });
+            // Decide by the space the arc actually offers, not by the share
+            // alone. Two geometric limits apply to a horizontal label of width
+            // W centred at distance r inside a wedge of half-angle phi:
+            //   tangential: the corner must stay inside the wedge, W <= r*tan(phi)
+            //   radial:      the corner must stay inside the disc, W <= sqrt(R^2-r^2)
+            // Both matter. Using only one of them was what let a 69.6% wedge
+            // (250 degrees!) be treated as if it had no room at all.
+            const R = Number(arc.outerRadius);
+            const r = Math.hypot(position.x - arc.x, position.y - arc.y) || Math.max(18, R * 0.58);
+            const halfAngle = Math.abs(Number(arc.endAngle) - Number(arc.startAngle)) / 2;
+            // A wedge wider than a half-turn has no tangential limit.
+            const tangential = halfAngle >= (Math.PI / 2) - 0.05
+              ? Infinity
+              : r * Math.tan(halfAngle);
+            const radial = Math.sqrt(Math.max(0, (R * R) - (r * r)));
+            const usable = Math.max(14, Math.min(tangential, radial));
+            // Only the rounded form is ever drawn inside: "69.6%" inside a
+            // wedge is both noisier and wider than "70%". If even the small
+            // size cannot fit, the slice goes outside with a leader line
+            // rather than shrinking the text or spilling a decimal back in.
+            const rounded = roundText(share);
+            let size = null;
+            for (const candidate of [SIZE_LARGE, SIZE_MID, SIZE_SMALL]) {
+              context.font = `600 ${candidate}px ${LABEL_FONT}`;
+              if (context.measureText(rounded).width + INLINE_PAD * 2 <= usable) {
+                size = candidate;
+                break;
+              }
+            }
+            if (size === null) {
+              if (!roomy || arc.fullCircles) return;
+              const start = Number(arc.startAngle);
+              const end = Number(arc.endAngle);
+              const radius = R;
+              if (!Number.isFinite(start) || !Number.isFinite(end) || !Number.isFinite(radius) || radius <= 0) return;
+              const mid = (start + end) / 2;
+              outsideCandidates.push({
+                share, label: rounded,
+                x0: arc.x + Math.cos(mid) * radius,
+                y0: arc.y + Math.sin(mid) * radius,
+                right: Math.cos(mid) >= 0, mid, radius, cx: arc.x, cy: arc.y
+              });
+              return;
+            }
+            context.font = `600 ${size}px ${LABEL_FONT}`;
+            labels.push({
+              label: rounded, x: position.x, y: position.y,
+              w: context.measureText(rounded).width, size,
+              tone: palette[index], outside: false
+            });
             return;
           }
           // Small slice: percentage goes outside the pie with a leader line.
@@ -375,7 +527,6 @@
           outsideCandidates.push({ share, label, x0, y0, right, mid, radius, cx: arc.x, cy: arc.y });
         });
         context.save();
-        context.font = '600 11px Inter, system-ui, sans-serif';
         context.textBaseline = 'middle';
         // Give the leader lines to the biggest tiny slices; the rest are
         // legend-only so the fan of lines never becomes an unreadable web.
@@ -412,7 +563,7 @@
               const ha = a.w / 2;
               const hb = b.w / 2;
               const overlapX = Math.min(a.x + ha, b.x + hb) - Math.max(a.x - ha, b.x - hb);
-              const overlapY = Math.min(a.y, b.y) + 5.5 - (Math.max(a.y, b.y) - 5.5);
+              const overlapY = Math.min(a.y, b.y) + (a.size + b.size) / 4 - (Math.max(a.y, b.y) - (a.size + b.size) / 4);
               if (overlapX <= 0 || overlapY <= 0) continue;
               moved = true;
               const midX = (a.x + b.x) / 2;
@@ -435,43 +586,52 @@
         const side = (item) => (item.right ? 1 : -1);
         const groups = { '-1': [], 1: [] };
         outside.forEach((item) => { groups[side(item)].push(item); });
-        const top = area ? area.top + 6 : 0;
-        const bottom = area ? area.bottom - 6 : 0;
+        // Vertical bounds use the real font height, not a fixed 6px margin: an
+        // 11px label needs ~9px above the baseline, so y=6 put half the text
+        // above the canvas and it was silently cut off.
+        context.font = `600 ${SIZE_SMALL}px ${LABEL_FONT}`;
+        const halfLine = Math.ceil(SIZE_SMALL * 0.82);
+        const top = Math.max(area ? area.top : 0, 0) + halfLine;
+        const bottom = Math.min(area ? area.bottom : context.canvas.height, context.canvas.height) - halfLine;
         [-1, 1].forEach((key) => {
           const group = groups[key];
           if (group.length < 1) return;
           group.sort((a, b) => a.y - b.y || a.x - b.x);
-          if (group.length > 1) {
-            for (let i = 1; i < group.length; i += 1) {
-              const gap = group[i].y - group[i - 1].y;
-              if (gap < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP;
-            }
-            // If the column no longer fits, compact it and re-centre on the pie.
-            const overflow = group[group.length - 1].y - bottom;
-            if (overflow > 0) {
-              group.forEach((item) => {
-                item.y = Math.max(top, item.y - overflow);
-                // The elbow follows the text so the leader keeps its shape.
-                item.elbowY = item.y;
-              });
-              // Second pass: guarantee the gap even after clamping.
-              for (let i = 1; i < group.length; i += 1) {
-                if (group[i].y - group[i - 1].y < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP;
-              }
-            }
-            // The first label can also start above the canvas: push the whole
-            // column down, otherwise it renders off-canvas and gets clipped.
-            const underflow = top - group[0].y;
-            if (underflow > 0) group.forEach((item) => { item.y += underflow; });
+          // Spread the column so neighbouring labels never touch.
+          for (let i = 1; i < group.length; i += 1) {
+            const gap = group[i].y - group[i - 1].y;
+            if (gap < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP;
           }
+          // Fit the column inside [top, bottom]. When even the compacted
+          // column is taller than the space, centre it instead of clamping
+          // every item to the same edge (which would re-introduce overlaps).
+          const span = group[group.length - 1].y - group[0].y;
+          const room = Math.max(0, bottom - top);
+          if (span > room && span > 0) {
+            const shift = (room - span) / 2;
+            group.forEach((item) => { item.y += shift; });
+          } else {
+            const overflow = group[group.length - 1].y - bottom;
+            if (overflow > 0) group.forEach((item) => { item.y -= overflow; });
+          }
+          // A single label (or any label still above the top edge) must be
+          // pushed down: this ran only for multi-label columns, so a lone
+          // label near the top was drawn half off-canvas.
+          const underflow = top - group[0].y;
+          if (underflow > 0) group.forEach((item) => { item.y += underflow; });
           group.forEach((item) => { item.elbowY = item.y; });
         });
-        // Horizontal clamp: no outside label may leave the canvas bounds.
+        // Horizontal clamp: no outside label may leave the canvas bounds. Use
+        // the canvas, not chartArea: a bottom legend pushes the area inside the
+        // canvas, but the area can also start left of x=0 on narrow charts.
         if (area) {
+          const boundLeft = Math.max(0, area.left);
+          const boundRight = Math.min(context.canvas.width, area.right);
           outside.forEach((item) => {
+            context.font = `600 ${SIZE_SMALL}px ${LABEL_FONT}`;
             const width = context.measureText(item.label).width;
             if (item.right) {
-              const limit = area.right - width;
+              const limit = boundRight - width;
               if (item.x > limit) {
                 const shift = item.x - limit;
                 item.x -= shift;
@@ -479,7 +639,7 @@
                 item.elbowX = Math.min(item.elbowX, item.tailX);
               }
             } else {
-              const limit = area.left + width;
+              const limit = boundLeft + width;
               if (item.x < limit) {
                 const shift = limit - item.x;
                 item.x += shift;
@@ -492,18 +652,29 @@
         labels.forEach((item) => {
           if (!item.outside) {
             context.textAlign = 'center';
+            context.font = `600 ${item.size}px ${LABEL_FONT}`;
+            // Contrast follows the slice: white on a mid tone needs a dark halo,
+            // but on a light tone the halo alone leaves a muddy smudge.
+            const tone = item.tone || '#334155';
+            const dark = isDarkColor(tone);
             context.lineWidth = 3;
-            context.strokeStyle = 'rgba(15, 23, 42, 0.55)';
+            context.strokeStyle = dark ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.85)';
             context.strokeText(item.label, item.x, item.y);
-            context.fillStyle = '#ffffff';
+            context.fillStyle = dark ? '#ffffff' : '#0f172a';
             context.fillText(item.label, item.x, item.y);
             return;
           }
           // Skip any label that still does not fit: the legend already carries
           // its percentage, so a clipped number is worse than no number here.
+          context.font = `600 ${SIZE_SMALL}px ${LABEL_FONT}`;
           const width = context.measureText(item.label).width;
           const left = item.right ? item.x : item.x - width;
-          if (area && (left < area.left - 0.5 || left + width > area.right + 0.5)) return;
+          // Clamp against the canvas, not just the chart area: the chart area
+          // can start outside the canvas (a legend narrows it past the left
+          // edge), and an outside label placed at x<0 was silently cut off.
+          const limitLeft = Math.max(0, area ? area.left : 0);
+          const limitRight = Math.min(context.canvas.width, area ? area.right : context.canvas.width);
+          if (left < limitLeft - 0.5 || left + width > limitRight + 0.5) return;
           if (item.y < 0 || item.y > (area ? area.bottom : item.y)) return;
           context.strokeStyle = 'rgba(100, 116, 139, 0.85)';
           context.lineWidth = 1;
@@ -730,7 +901,7 @@
   }
 
   function switchTab(tabName) {
-    if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad', 'conclusiones'].includes(tabName)) return;
+    if (!['resumen', 'calidad', 'matriz', 'retos', 'comunidad', 'conclusiones', 'hojaruta'].includes(tabName)) return;
     document.querySelectorAll('.tab-btn').forEach((button) => button.classList.toggle('active', button.id === `tab-${tabName}`));
     document.querySelectorAll('.tab-content').forEach((content) => content.classList.toggle('hidden', content.id !== `content-${tabName}`));
     // On narrow screens the tab bar scrolls sideways: bring the active tab

@@ -61,7 +61,10 @@ Mantener un dashboard ejecutivo de la encuesta de familias del Colegio José Max
 - AC13: Pruebas Python y `node --check` terminan correctamente antes del deploy.
 - AC14: La pestaña "6. Insights & Conclusiones" existe, aparece en el nav, se activa con `switchTab('conclusiones')` y su contenido es idéntico al aprovado; no altera el layout de las otras cinco.
 - AC15: Las gráficas de torta no lanzan excepciones al dibujarse: los porcentajes aparecen y no se montan entre sí, ni sin filtros ni con filtros.
-- AC16: Las 6 pestañas se muestran en una sola fila a 1440, 1024, 768, 640, 480, 375 y 320 px; en móvil la barra se desplaza lateralmente y la pestaña activa queda visible tras cambiar.
+- AC16: Las 7 pestañas se muestran en una sola fila a 1440, 1024, 768, 640, 480, 375 y 320 px; en móvil la barra se desplaza lateralmente y la pestaña activa queda visible tras cambiar.
+- AC17: La pestaña 6 (Insights) no contiene ningún porcentaje fijo: todas sus cifras se calculan en vivo y se recalculan con los filtros, indicando si la vista está filtrada.
+- AC18: La pestaña 7 (Hoja de Ruta) es un documento de decisión independiente de los filtros, con la base de lectura que usó.
+- AC19: Las gráficas de torta y anillo no muestran colisiones ni recortes en ninguna combinación de filtros (verificado en 60 escenarios), los porcentajes se redondean dentro de la porción y se conservan con decimal en la leyenda.
 
 ## Constraints
 

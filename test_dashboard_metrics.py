@@ -328,34 +328,65 @@ class PipelineTests(unittest.TestCase):
         for name in set(assignments):
             self.assertIn(name, declared, f"undefined identifier {name!r} in percentage plugin")
 
-    def test_sixth_tab_conclusiones_is_wired(self):
+    def test_all_tabs_are_wired_and_nav_columns_match(self):
         template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
         runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
-        # Nav button and content container must both exist and be paired.
-        self.assertIn('id="tab-conclusiones"', template)
-        self.assertIn("switchTab('conclusiones')", template)
-        self.assertIn('id="content-conclusiones"', template)
-        # switchTab whitelists tab names: a new tab that is not listed is ignored.
-        body = runtime.split("function switchTab(tabName)", 1)[1].split("return;", 1)[0]
-        self.assertIn("'conclusiones'", body)
-        self.assertIn("'comunidad'", body)
-        self.assertIn("'resumen'", body)
-        # All six tab contents must exist exactly once.
-        for name in ("resumen", "calidad", "matriz", "retos", "comunidad", "conclusiones"):
+        names = ("resumen", "calidad", "matriz", "retos", "comunidad", "conclusiones", "hojaruta")
+        for name in names:
+            # switchTab whitelists tab names: a new tab that is not listed is ignored.
+            self.assertIn(f"switchTab('{name}')", template)
             self.assertEqual(template.count(f'id="content-{name}"'), 1, name)
             self.assertEqual(template.count(f'id="tab-{name}"'), 1, name)
-        # The editorial percentages are static, so the tab must say so.
-        self.assertIn("insightsSampleSize", template)
-        self.assertIn("77 respuestas", template)
+        body = runtime.split("function switchTab(tabName)", 1)[1].split("return;", 1)[0]
+        for name in names:
+            self.assertIn(f"'{name}'", body)
+        # The nav grid must match the number of buttons or the last tab wraps.
+        nav = template.split("<nav", 1)[1].split("</nav>", 1)[0]
+        buttons = nav.count('class="tab-btn')
+        self.assertEqual(buttons, len(names))
+        self.assertIn(f"repeat({buttons}, minmax(0, 1fr))", template)
 
-    def test_tab_nav_keeps_all_six_tabs_on_one_row(self):
+    def test_insights_tab_figures_are_live_not_hardcoded(self):
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        block = template.split('id="content-conclusiones"', 1)[1].split('id="content-hojaruta"', 1)[0]
+        # No fixed percentages: this tab used to ship figures from a 77-row cut
+        # while the dashboard was showing 226 rows, which read as live data.
+        # "0%" is the placeholder every live field starts from, so only a
+        # non-zero literal counts as a hardcoded figure.
+        found = re.findall(r">\s*(\d{1,3}(?:\.\d)?)%\s*<", block)
+        hardcoded = [v for v in found if float(v) != 0]
+        self.assertEqual(hardcoded, [], f"hardcoded percentage in Insights tab: {hardcoded}")
+        # Every figure is written by the renderer from model.INSIGHTS.
+        for anchor in (
+            "insightsIndex", "ejeAdnPct", "ejeAlertaPct", "ejeDemandaPct", "ejePotencialPct",
+            "paradoja1Reto", "paradoja2Pct", "paradoja3Top", "paradoja4Top",
+        ):
+            self.assertIn(f'id="{anchor}"', block, anchor)
+            self.assertIn(f"'{anchor}'", runtime, anchor)
+        self.assertIn("INSIGHTS: insights", runtime)
+        self.assertIn("function renderInsights", runtime)
+        # The tab must declare that it follows the filters.
+        self.assertIn("Vista filtrada", runtime)
+
+    def test_roadmap_tab_is_a_static_decision_document(self):
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        block = template.split('id="content-hojaruta"', 1)[1]
+        self.assertIn("Documento de Decisión", block)
+        self.assertIn("No depende de los filtros", block)
+        self.assertIn("6. Insights &amp; Conclusiones", block)
+        self.assertIn('id="roadmapSampleSize"', block)
+        for horizon in ("Horizonte 1", "Horizonte 2", "Horizonte 3"):
+            self.assertIn(horizon, block)
+
+    def test_tab_nav_keeps_all_tabs_on_one_row(self):
         template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
         # A fixed column count with more buttons than columns wraps the last tab
         # onto a second row: the bar changes height and pushes content down.
         self.assertNotIn("grid-cols-5", template.split("</nav>")[0])
-        # Six tabs need a responsive container: grid at >=sm, scroll at <sm.
+        # Tabs need a responsive container: grid at >=sm, scroll at <sm.
         self.assertIn('id="tabNav"', template)
-        self.assertIn("grid-template-columns: repeat(6, minmax(0, 1fr))", template)
+        self.assertIn("grid-template-columns: repeat(7, minmax(0, 1fr))", template)
         self.assertIn("overflow-x: auto", template)
         runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
         # The active tab must be scrolled into view when the bar scrolls.
@@ -364,6 +395,121 @@ class PipelineTests(unittest.TestCase):
         # offsetLeft is relative to the nearest positioned ancestor, so the
         # scroll math must use getBoundingClientRect deltas.
         self.assertNotIn("active.offsetLeft", runtime)
+
+    def test_no_identifier_is_used_before_its_declaration(self):
+        # A const/let declared after its use inside a closure throws only at
+        # paint time ("Cannot access X before initialization"), which a source
+        # scan must catch: it took down every pie percentage once already.
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        declared = set(re.findall(r"\b(?:const|let|function)\s+([A-Za-z_$][\w$]*)", runtime))
+        for name in ("roundText", "isDarkColor", "size", "palette", "usable", "text"):
+            self.assertIn(name, declared, f"{name} must be declared")
+        # roundText is used inside the draw hook, so it has to live above it.
+        self.assertLess(
+            runtime.index("const roundText"),
+            runtime.index("const rounded = roundText(share)"),
+            "roundText must be declared before the draw hook uses it",
+        )
+        # The helper must not be redeclared inside the hook, which would hoist
+        # a second binding in the wrong order.
+        hook = runtime.split("afterDatasetsDraw(chart)", 1)[1]
+        self.assertNotIn("const roundText", hook)
+
+    def test_inline_label_uses_both_geometric_limits(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        inline = runtime.split("if (share >= MIN_SHARE)", 1)[1].split("// Small slice", 1)[0]
+        # A horizontal label must fit both the wedge and the disc. Checking only
+        # the wedge gave a 250-degree slice zero room and left it unreadable.
+        self.assertIn("r * Math.tan(halfAngle)", inline)
+        self.assertIn("Math.sqrt(Math.max(0, (R * R) - (r * r)))", inline)
+        self.assertIn("Math.min(tangential, radial)", inline)
+        # A slice wider than a half-turn has no tangential limit.
+        self.assertIn("halfAngle >= (Math.PI / 2) - 0.05", inline)
+        self.assertIn("? Infinity", inline)
+
+    def test_outside_labels_clamp_to_the_canvas_not_only_the_chart_area(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # chartArea.left can be negative on narrow charts; clamping against it
+        # alone left labels at x<0, which the canvas silently cut off.
+        self.assertIn("const boundLeft = Math.max(0, area.left)", runtime)
+        self.assertIn("const boundRight = Math.min(context.canvas.width, area.right)", runtime)
+        self.assertIn("const limitLeft = Math.max(0, area ? area.left : 0)", runtime)
+        self.assertIn("const limitRight = Math.min(context.canvas.width, area ? area.right : context.canvas.width)", runtime)
+
+    def test_outside_column_bounds_apply_to_single_labels_too(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        block = runtime.split("const side = (item) =>", 1)[1].split("// Horizontal clamp", 1)[0]
+        # The underflow correction used to live inside `if (group.length > 1)`,
+        # so a lone label near the top was drawn half off-canvas.
+        self.assertNotIn("if (group.length > 1) {", block)
+        # Spreading, fitting and the underflow push must all run unconditionally.
+        self.assertIn("if (gap < OUTSIDE_MIN_GAP) group[i].y = group[i - 1].y + OUTSIDE_MIN_GAP", block)
+        self.assertIn("const span = group[group.length - 1].y - group[0].y", block)
+        self.assertIn("const room = Math.max(0, bottom - top)", block)
+        self.assertIn("const underflow = top - group[0].y", block)
+        self.assertIn("if (underflow > 0) group.forEach((item) => { item.y += underflow; });", block)
+        # When the column is taller than the space, centre it rather than
+        # clamping every item to the same edge (which re-introduces overlaps).
+        self.assertIn("if (span > room && span > 0)", block)
+        self.assertIn("const shift = (room - span) / 2", block)
+
+    def test_pie_plugin_measures_text_after_setting_the_font(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # The original bug: measureText ran before ctx.font was set, so every
+        # label measured ~10px wide and the separation loop saw no collision.
+        # Assert the font is set before every measureText in the inline path.
+        inline = runtime.split("if (share >= MIN_SHARE)", 1)[1].split("// Small slice", 1)[0]
+        first_font = inline.find("context.font = `600 ${candidate}px")
+        first_measure = inline.find("context.measureText")
+        self.assertNotEqual(first_font, -1, "inline path must set a per-label font")
+        self.assertLess(first_font, first_measure, "font must be set before measuring")
+        self.assertIn("w: context.measureText(rounded).width", inline)
+        # And the size must be honoured at draw time, not only measured.
+        self.assertIn("context.font = `600 ${item.size}px ${LABEL_FONT}`", runtime)
+
+    def test_pie_plugin_rounds_inline_percentages_and_keeps_decimal_in_legend(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # "8.0%" inside a wedge is noise; the decimal stays in the legend.
+        self.assertIn("const roundText = (share) => `${Math.round(share)}%`", runtime)
+        self.assertIn("text: `${label} (${shares[index] ?? 0}%)`", runtime)
+        # Font sizing must adapt to the arc, not be a hardcoded 11px.
+        self.assertIn("const SIZE_LARGE = 13", runtime)
+        self.assertIn("const SIZE_MID = 12", runtime)
+        self.assertIn("const SIZE_SMALL = 11", runtime)
+        # When even the small size does not fit, the slice goes OUTSIDE; the
+        # exact decimal must never reappear inside a wedge.
+        inline = runtime.split("if (share >= MIN_SHARE)", 1)[1].split("// Small slice", 1)[0]
+        self.assertIn("if (size === null) {", inline)
+        self.assertIn("outsideCandidates.push({", inline)
+        self.assertNotIn("let text = label", inline)
+        self.assertNotIn("text: label,", inline)
+
+    def test_outside_label_bounds_use_the_real_font_height(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        # A fixed 6px top margin cut the top half of an 11px label off canvas.
+        self.assertIn("const halfLine = Math.ceil(SIZE_SMALL * 0.82)", runtime)
+        self.assertIn("const top = Math.max(area ? area.top : 0, 0) + halfLine", runtime)
+        self.assertIn("const bottom = Math.min(area ? area.bottom : context.canvas.height, context.canvas.height) - halfLine", runtime)
+        self.assertNotIn("area.top + 6", runtime)
+        self.assertNotIn("area.bottom - 6", runtime)
+
+    def test_pie_label_contrast_follows_the_slice_color(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        self.assertIn("function isDarkColor(color)", runtime)
+        self.assertIn("tone: palette[index]", runtime)
+        # White on amber/orange reads as a smudge: pick the pair by luminance.
+        self.assertIn("context.strokeStyle = dark ? 'rgba(15, 23, 42, 0.55)' : 'rgba(255, 255, 255, 0.85)'", runtime)
+        self.assertIn("context.fillStyle = dark ? '#ffffff' : '#0f172a'", runtime)
+
+    def test_is_dark_color_uses_relative_luminance(self):
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        body = runtime.split("function isDarkColor(color)", 1)[1].split("function registerPercentageLabels", 1)[0]
+        self.assertIn("0.2126", body)
+        self.assertIn("0.7152", body)
+        self.assertIn("0.0722", body)
+        self.assertIn("luminance < 0.45", body)
+        # Shorthand hex must be expanded before parsing.
+        self.assertIn("color.slice(1).split('').map((c) => c + c).join('')", body)
 
     def test_html_snapshot_contains_no_pii_columns(self):
         headers = self_headers()
