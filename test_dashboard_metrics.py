@@ -409,6 +409,21 @@ class PipelineTests(unittest.TestCase):
         self.assertIn("$('kpiStrip').classList.toggle('hidden', global)", runtime)
         self.assertIn("$('filterPanel').classList.toggle('hidden', global)", runtime)
 
+    def test_no_field_filled_by_setpct_has_a_literal_percent(self):
+        # setPct() already appends the % sign. A literal "%" next to its span
+        # renders "95.1%%". The two exceptions are filled with setText, which
+        # writes a bare number, so their literal % is correct.
+        template = (ROOT / "Dashboard_CBJML.html").read_text(encoding="utf-8")
+        runtime = (ROOT / "dashboard_runtime.js").read_text(encoding="utf-8")
+        setpct_ids = set(re.findall(r"setPct\('([^']+)'", runtime))
+        self.assertTrue(setpct_ids, "no setPct() call found: the probe itself is broken")
+        doubles = [
+            match.group(1)
+            for match in re.finditer(r'<span id="([^"]+)">0</span>\s*%', template)
+            if match.group(1) in setpct_ids
+        ]
+        self.assertEqual(doubles, [], f"double %% rendered by: {sorted(doubles)}")
+
     def test_every_helper_called_inside_the_runtime_exists(self):
         # getAllResponses() was invented while refactoring and only blew up at
         # runtime, when a filter was applied. Any bare call to a local helper
